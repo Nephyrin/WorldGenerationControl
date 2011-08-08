@@ -139,11 +139,12 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         return true;
     }
 
-    private boolean freeLoadedChunks()
+    private int freeLoadedChunks()
     {
-        boolean ret = true;
-        // Go backwards through the list so removing items doesn't
-        // shift indicies on unprocessed items
+        // requesting an unloaded chunk wont always cause it to unload,
+        // causing misc chunks to pile up,
+        // so we keep the whole list we loaded and file unload requests for all
+        // of them each frame.
         for (int i = ourChunks.size() - 1; i >= 0; i--)
         {
             int x = ourChunks.get(i).getX();
@@ -151,35 +152,35 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             if (world.isChunkLoaded(x, z))
             {
                 world.unloadChunkRequest(x, z, true);
-                ourChunks.remove(i);
             }
             else
             {
-                ret = false;
+                ourChunks.remove(i);
             }
         }
-        return ret;
+        return ourChunks.length;
     }
 
     public void run()
     {
         if (this.taskId == 0) return; // Prevent inappropriate calls
 
-        if (!this.freeLoadedChunks())
-        {
-            // This can happen if something else is unloading our chunks (such as
-            // players running around the server)
-            // It's usually harmless, but might indicate a bug.
-            System.out.println("[ForcegenChunks] Warning: Failed to free all chunks");
-        }
+        int remainingChunks = this.freeLoadedChunks();
 
         int loaded = world.getLoadedChunks().length;
 
         if (this.zNext > this.zEnd)
         {
-            System.out.println("[ForcegenChunks] Finished generating, " + loaded + " chunks currently loaded.");
-            getServer().getScheduler().cancelTask(this.taskId);
-            this.taskId = 0;
+            if (remainingChunks > 0)
+            {
+                System.out.println("[ForcegenChunks] Waiting for "+remainingChunks+" chunks to finish unloading, " + loaded + " chunks currently loaded.");
+            }
+            else
+            {
+                System.out.println("[ForcegenChunks] Finished generating, " + loaded + " chunks currently loaded.");
+                getServer().getScheduler().cancelTask(this.taskId);
+                this.taskId = 0;
+            }
             return;
         }
 
