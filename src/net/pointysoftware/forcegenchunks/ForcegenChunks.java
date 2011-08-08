@@ -37,7 +37,7 @@ import org.bukkit.scheduler.BukkitScheduler;
 
 public class ForcegenChunks extends JavaPlugin implements Runnable
 {
-    private final static String VERSION = "1.0";
+    private final static String VERSION = "1.1";
     private class ChunkXZ
     {
         private int x; private int z;
