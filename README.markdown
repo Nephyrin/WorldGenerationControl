@@ -16,11 +16,17 @@ demand for it.
 
 The syntax is:
 
-> /forcegenchunks WorldName StartX StartZ EndX EndZ
+> /forcegenchunks WorldName StartX StartZ EndX EndZ [maxLoadedChunks]
 
 Note that all coordinates are in *chunk coordinates*, not world coordinates. A
 chunk is 16 blocks, so -10,-10 in chunk coordinates is about -160,-160 in
 in-game coordinates
+
+The maxLoadedChunks argument controls the maximum number of chunks that should
+be tolerated in ram until the plugin stops generating and waits for some to
+unload. It defaults to the number of chunks loaded when generation starts + 800.
+On an empty server this would be ~1400 chunks. Setting this higher increases ram
+requirements, but can improve generation time.
 
 ### Example
 
