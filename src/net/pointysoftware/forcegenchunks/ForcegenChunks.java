@@ -59,7 +59,6 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
     private int xNext;
     private int zNext;
     private int maxLoadedChunks;
-    private boolean waiting;
     
     public void onEnable()
     {
@@ -79,45 +78,63 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
 
     public boolean onCommand(CommandSender sender, Command cmd, String commandLabel, String[] args)
     {
-        if (!sender.isOp())
+        if (commandLabel.compareToIgnoreCase("forcegenchunks") == 0 || commandLabel.compareToIgnoreCase("forcegen") == 0)
         {
-            sender.sendMessage("[ForcegenChunks] Requires op status.");
-            return true;
+            if (!sender.isOp())
+            {
+                sender.sendMessage("[ForcegenChunks] Requires op status.");
+                return true;
+            }
+            if (args.length != 5 && args.length != 6) return false;
+            if (this.taskId != 0)
+            {
+                sender.sendMessage("[ForcegenChunks] Generation already in progress.");
+                return true;
+            }
+            World world = getServer().getWorld(args[0]);
+            if (world == null)
+            {
+                sender.sendMessage("[ForcegenChunks] World \"" + args[0] + "\" does not exist.");
+                return true;
+            }
+            int xStart = Integer.parseInt(args[1]);
+            int zStart = Integer.parseInt(args[2]);
+            int xEnd   = Integer.parseInt(args[3]);
+            int zEnd   = Integer.parseInt(args[4]);
+            int maxLoadedChunks;
+            int loaded = world.getLoadedChunks().length;
+            if (args.length == 6) maxLoadedChunks = Integer.parseInt(args[5]);
+            else maxLoadedChunks = loaded + 800;
+            if (maxLoadedChunks < loaded + 200)
+            {
+                sender.sendMessage("[ForcegenChunks] maxLoadedChunks too low, there are already " + loaded + " chunks loaded - need a value of at least " + (loaded + 200));
+                return true;
+            }
+            if (xEnd - xStart < 1 || zEnd - zStart < 1)
+            {
+                sender.sendMessage("[ForcegenChunks] xEnd and zEnd must be greater than xStart and zStart respectively.");
+                return true;
+            }
+            int num = (xEnd - xStart + 1) * (zEnd - zStart + 1);
+            sender.sendMessage("[ForcegenChunks] Starting generation of " + num + " Chunks (" + (num * 16) + " blocks.)");
+            if (world.getPlayers().size() > 0) sender.sendMessage("[ForcegenChunks] ... Warning: There are currently players in this world. If players wander into the generation zone, generation will not finish until they leave.");
+            this.generateChunks(world, xStart, xEnd, zStart, zEnd, maxLoadedChunks);
         }
-        if (args.length != 5 && args.length != 6) return false;
-        if (this.taskId != 0)
+        else if (commandLabel.compareToIgnoreCase("cancelforcegenchunks") == 0 || commandLabel.compareToIgnoreCase("cancelforcegen") == 0)
         {
-            sender.sendMessage("[ForcegenChunks] Generation already in progress.");
-            return true;
+            if (this.taskId == 0 || this.zNext > this.zEnd)
+            {
+                sender.sendMessage("[ForcegenChunks] There is no chunk generation in progress");
+                return true;
+            }
+            else
+            {
+                // Push it past the end of the region, so it will still
+                // continue the task while waiting for unloaded chunks.
+                this.zNext = this.zEnd + 1;
+                sender.sendMessage("[ForcegenChunks] Canceling generation, waiting for remaining chunks to unload");
+            }
         }
-        World world = getServer().getWorld(args[0]);
-        if (world == null)
-        {
-            sender.sendMessage("[ForcegenChunks] World \"" + args[0] + "\" does not exist.");
-            return true;
-        }
-        int xStart = Integer.parseInt(args[1]);
-        int zStart = Integer.parseInt(args[2]);
-        int xEnd   = Integer.parseInt(args[3]);
-        int zEnd   = Integer.parseInt(args[4]);
-        int maxLoadedChunks;
-        int loaded = world.getLoadedChunks().length;
-        if (args.length == 6) maxLoadedChunks = Integer.parseInt(args[5]);
-        else maxLoadedChunks = loaded + 800;
-        if (maxLoadedChunks < loaded + 200)
-        {
-            sender.sendMessage("[ForcegenChunks] maxLoadedChunks too low, there are already " + loaded + " chunks loaded before we even begin!");
-            return true;
-        }
-        if (xEnd - xStart < 1 || zEnd - zStart < 1)
-        {
-            sender.sendMessage("[ForcegenChunks] xEnd and zEnd must be greater than xStart and zStart respectively.");
-            return true;
-        }
-        int num = (xEnd - xStart + 1) * (zEnd - zStart + 1);
-        sender.sendMessage("[ForcegenChunks] Starting generation of " + num + " Chunks (" + (num * 16) + " blocks.)");
-        this.generateChunks(world, xStart, xEnd, zStart, zEnd, maxLoadedChunks);
-        
         return true;
     }
 
@@ -142,7 +159,6 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         this.xEnd = xEnd;
         this.zStart = zStart;
         this.zEnd = zEnd;
-        this.waiting = false;
         this.taskId = getServer().getScheduler().scheduleSyncRepeatingTask(this, this, 50, 50);
         return true;
     }
@@ -182,6 +198,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             if (remainingChunks > 0)
             {
                 System.out.println("[ForcegenChunks] Waiting for "+remainingChunks+" chunks to finish unloading, " + loaded + " chunks currently loaded.");
+                if (world.getPlayers().size() > 0) System.out.println("[ForcegenChunks] ... There are currently players in this world, which may cause these chunks to hang! Try kicking some people if this message keeps repeating");
             }
             else
             {
@@ -194,14 +211,9 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
 
         if (loaded > this.maxLoadedChunks)
         {
-            if (!this.waiting)
-            {
-                System.out.println("[ForcegenChunks] More than " + this.maxLoadedChunks + " chunks loaded (" + loaded + "), waiting for some to finish unloading");
-                this.waiting = true;
-            }
+            System.out.println("[ForcegenChunks] More than " + this.maxLoadedChunks + " chunks loaded (" + loaded + "), waiting for some to finish unloading");
             return;
         }
-        this.waiting = false;
 
         int x1 = this.xNext - 2;
         int x2 = Math.min(x1 + this.BLOCKSIZE - 1, this.xEnd + 2);

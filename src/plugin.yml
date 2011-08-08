@@ -9,4 +9,7 @@ commands:
       description: Force generate region of chunks.
       usage: |
             /<command> WorldName xStart zStart xEnd zEnd [maxLoadedChunks]
-            
+
+   cancelforcegenchunks:
+      aliases: cancelforcegen
+      description: Cancel pending forced chunk generation.
