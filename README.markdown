@@ -38,7 +38,9 @@ in-game coordinates.
 Compiling
 ---------------------
 > cd src
+
 > javac -cp .:/path/to/bukkit net/pointysoftware/forcegenchunks/ForcegenChunks.java
+
 > zip -r ForcegenChunks_build.jar .
 
 My apologies for not having a proper build script.
