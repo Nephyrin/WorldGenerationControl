@@ -166,7 +166,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
                 ourChunks.remove(i);
             }
         }
-        return ourChunks.length;
+        return ourChunks.size();
     }
 
     public void run()
