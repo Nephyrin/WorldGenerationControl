@@ -1,0 +1,12 @@
+name: ForcegenChunks
+main: net.pointysoftware.forcegenchunks.ForcegenChunks
+version: 1.0
+author: john@pointysoftware.net
+
+commands:
+   forcegenchunks:
+      aliases: forcegen
+      description: Force generate region of chunks.
+      usage: |
+            /<command> WorldName xStart zStart xEnd zEnd
+            
