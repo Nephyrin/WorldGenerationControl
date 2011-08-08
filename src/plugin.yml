@@ -8,5 +8,5 @@ commands:
       aliases: forcegen
       description: Force generate region of chunks.
       usage: |
-            /<command> WorldName xStart zStart xEnd zEnd
+            /<command> WorldName xStart zStart xEnd zEnd [maxLoadedChunks]
             
