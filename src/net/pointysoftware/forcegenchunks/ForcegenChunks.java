@@ -166,9 +166,10 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
     private int freeLoadedChunks()
     {
         // requesting an unloaded chunk wont always cause it to unload,
-        // causing misc chunks to pile up,
-        // so we keep the whole list we loaded and file unload requests for all
-        // of them each frame.
+        // causing misc chunks to pile up, so we keep issueing unload requests
+        // until the chunk disappears. This is why players near the generation
+        // area can cause the plugin to sit on 'waiting for chunks to unload'
+        // until they leave.
         for (int i = ourChunks.size() - 1; i >= 0; i--)
         {
             int x = ourChunks.get(i).getX();
@@ -198,7 +199,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             if (remainingChunks > 0)
             {
                 System.out.println("[ForcegenChunks] Waiting for "+remainingChunks+" chunks to finish unloading, " + loaded + " chunks currently loaded.");
-                if (world.getPlayers().size() > 0) System.out.println("[ForcegenChunks] ... There are currently players in this world, which may cause these chunks to hang! Try kicking some people if this message keeps repeating");
+                if (world.getPlayers().size() > 0) System.out.println("[ForcegenChunks] -- There are players in this world, some chunks may not finish unloading until they leave.");
             }
             else
             {
