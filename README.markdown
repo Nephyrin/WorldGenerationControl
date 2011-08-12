@@ -22,6 +22,13 @@ Note that all coordinates are in *chunk coordinates*, not world coordinates. A
 chunk is 16 blocks, so -10,-10 in chunk coordinates is about -160,-160 in
 in-game coordinates
 
+For circles:
+
+> /forcegencircle Radius [WorldName xCenter zCenter] [maxLoadedChunks]
+
+The world and coordinates are optional if you are a player (not the console). It
+will default to your current/world position.
+
 The maxLoadedChunks argument controls the maximum number of chunks that should
 be tolerated in ram until the plugin stops generating and waits for some to
 unload. It defaults to the number of chunks loaded when generation starts + 800.
