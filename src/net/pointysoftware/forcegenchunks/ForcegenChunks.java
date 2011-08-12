@@ -65,17 +65,33 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
     private int xCenter;
     private int zCenter;
     private int maxLoadedChunks;
+    private CommandSender commandSender;
     
     public void onEnable()
     {
-        System.out.println("[ForcegenChunks] v"+VERSION+" Loaded");
+        replyMsg("v"+VERSION+" Loaded");
+    }
+    
+    // Print messages on both the console and to the player involved.
+    private void replyMsg(String str)
+    {
+        // commandSender might be the console, so dont' duplicate messages
+        boolean alsoSendToConsole = true;
+        if (this.commandSender != null)
+        {
+            try { Player p = (Player)this.commandSender; }
+            catch (ClassCastException e) { alsoSendToConsole = false; }
+            
+            this.commandSender.sendMessage("[ForcegenChunks] " + str);
+        }
+        if (alsoSendToConsole) System.out.println("[ForcegenChunks] " + str);
     }
 
     public void onDisable()
     {
         if (this.taskId != 0)
         {
-            System.out.println("[ForcegenChunks] Unloading, aborting generation");
+            replyMsg("Unloading, aborting generation");
             getServer().getScheduler().cancelTask(this.taskId);
             this.taskId = 0;
         }
@@ -178,7 +194,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             sender.sendMessage("[ForcegenChunks] Starting generation of " + num + " Chunks (" + (num * 16) + " blocks.)");
             if (world.getPlayers().size() > 0) sender.sendMessage("[ForcegenChunks] ... Warning: There are currently players in this world. If players wander into the generation zone, generation will not finish until they leave.");
 
-            this.generateChunks(world, xStart, xEnd, zStart, zEnd, maxLoadedChunks, radius, xCenter, zCenter);
+            this.generateChunks(world, xStart, xEnd, zStart, zEnd, maxLoadedChunks, radius, xCenter, zCenter, sender);
         }
         else if (commandLabel.compareToIgnoreCase("cancelforcegenchunks") == 0 || commandLabel.compareToIgnoreCase("cancelforcegen") == 0)
         {
@@ -198,7 +214,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         return true;
     }
 
-    public boolean generateChunks(World world, int xStart, int xEnd, int zStart, int zEnd, int maxLoadedChunks, int radius, int xCenter, int zCenter)
+    public boolean generateChunks(World world, int xStart, int xEnd, int zStart, int zEnd, int maxLoadedChunks, int radius, int xCenter, int zCenter, CommandSender commandSender)
     {
         if (this.taskId != 0) return false;
 
@@ -222,6 +238,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         this.xCenter = xCenter;
         this.zCenter = zCenter;
         this.radius = radius;
+        this.commandSender = commandSender;
         this.taskId = getServer().getScheduler().scheduleSyncRepeatingTask(this, this, 50, 50);
         return true;
     }
@@ -261,12 +278,12 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         {
             if (remainingChunks > 0)
             {
-                System.out.println("[ForcegenChunks] Waiting for "+remainingChunks+" chunks to finish unloading, " + loaded + " chunks currently loaded.");
-                if (world.getPlayers().size() > 0) System.out.println("[ForcegenChunks] -- There are players in this world, some chunks may not finish unloading until they leave.");
+                replyMsg("Waiting for "+remainingChunks+" chunks to finish unloading, " + loaded + " chunks currently loaded.");
+                if (world.getPlayers().size() > 0) replyMsg("-- There are players in this world, some chunks may not finish unloading until they leave.");
             }
             else
             {
-                System.out.println("[ForcegenChunks] Finished generating, " + loaded + " chunks currently loaded.");
+                replyMsg("Finished generating, " + loaded + " chunks currently loaded.");
                 getServer().getScheduler().cancelTask(this.taskId);
                 this.taskId = 0;
             }
@@ -275,7 +292,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
 
         if (loaded > this.maxLoadedChunks)
         {
-            System.out.println("[ForcegenChunks] More than " + this.maxLoadedChunks + " chunks loaded (" + loaded + "), waiting for some to finish unloading");
+            replyMsg("More than " + this.maxLoadedChunks + " chunks loaded (" + loaded + "), waiting for some to finish unloading");
             return;
         }
 
@@ -284,7 +301,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         int z1 = this.zNext - 2;
         int z2 = Math.min(z1 + this.BLOCKSIZE - 1, this.zEnd + 2);
 
-        System.out.println("[ForcegenChunks] Generating " + ((x2 - x1 + 1) * (z2 - z1 + 1)) + " chunk region from ["+x1+","+z1+"] to ["+x2+","+z2+"], " + loaded + " currently loaded.");
+        replyMsg("Generating " + ((x2 - x1 + 1) * (z2 - z1 + 1)) + " chunk region from ["+x1+","+z1+"] to ["+x2+","+z2+"], " + loaded + " currently loaded.");
 
         for (int nx = x1; nx <= x2; nx++)
         {
@@ -303,7 +320,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         }
 
         //loaded = world.getLoadedChunks().length;
-        //System.out.println("[ForcegenChunks] ... now loaded: " + loaded);
+        //replyMsg("... now loaded: " + loaded);
         this.xNext = x2 + 1;
 
         if (this.xNext > this.xEnd)
