@@ -173,7 +173,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             
             if (world == null)
             {
-                sender.sendMessage("[ForcegenChunks] World \"" + args[0] + "\" does not exist.");
+                sender.sendMessage("[ForcegenChunks] That world does not exist.");
                 return true;
             }
             
