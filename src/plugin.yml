@@ -9,6 +9,11 @@ commands:
       description: Force generate region of chunks.
       usage: |
             /<command> WorldName xStart zStart xEnd zEnd [maxLoadedChunks]
+   
+   forcegencircle:
+       description: Force generate a circular region of chunks
+       usage: |
+            /<command> Radius [WorldName xCenter zCenter] [maxLoadedChunks]
 
    cancelforcegenchunks:
       aliases: cancelforcegen

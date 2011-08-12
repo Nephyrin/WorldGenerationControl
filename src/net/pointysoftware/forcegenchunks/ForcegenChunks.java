@@ -27,8 +27,11 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import org.bukkit.Chunk;
 import org.bukkit.Server;
 import org.bukkit.World;
+import org.bukkit.Location;
+import org.bukkit.entity.Player;
 
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -58,6 +61,9 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
     private int zEnd;
     private int xNext;
     private int zNext;
+    private int radius;
+    private int xCenter;
+    private int zCenter;
     private int maxLoadedChunks;
     
     public void onEnable()
@@ -78,38 +84,91 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
 
     public boolean onCommand(CommandSender sender, Command cmd, String commandLabel, String[] args)
     {
-        if (commandLabel.compareToIgnoreCase("forcegenchunks") == 0 || commandLabel.compareToIgnoreCase("forcegen") == 0)
+        boolean bCircular = commandLabel.compareToIgnoreCase("forcegencircle") == 0;
+        if (bCircular || commandLabel.compareToIgnoreCase("forcegenchunks") == 0 || commandLabel.compareToIgnoreCase("forcegen") == 0)
         {
             if (!sender.isOp())
             {
                 sender.sendMessage("[ForcegenChunks] Requires op status.");
                 return true;
             }
-            if (args.length != 5 && args.length != 6) return false;
             if (this.taskId != 0)
             {
                 sender.sendMessage("[ForcegenChunks] Generation already in progress.");
                 return true;
             }
-            World world = getServer().getWorld(args[0]);
+            if     ((bCircular && (args.length != 1 && args.length != 2 && args.length != 4 && args.length != 5))
+                || (!bCircular && (args.length != 5 && args.length != 6)))
+            {
+                return false;
+            }
+            
+            World world = null;
+            int maxLoadedChunks = -1;
+            int xCenter = 0, zCenter = 0, xStart, zStart, xEnd, zEnd, radius = 0;
+            if (bCircular)
+            {
+                radius = Integer.parseInt(args[0]);
+                if (radius < 1)
+                {
+                    sender.sendMessage("[ForcegenChunks] Radius must be > 1!");
+                    return true;
+                }
+                
+                boolean isPlayer = true;
+                try { Player p = (Player)sender; }
+                catch (ClassCastException e) { isPlayer = false; }
+                
+                if (isPlayer && args.length < 4)
+                {
+                    // Use player's location to center circle
+                    Chunk c = ((Player)sender).getLocation().getBlock().getChunk();
+                    world = c.getWorld();
+                    xCenter = c.getX();
+                    zCenter = c.getZ();
+                }
+                else
+                {
+                    if (args.length < 4)
+                    {
+                        sender.sendMessage("[ForcegenChunks] You're not a player, so you need to specify a world name and location.");
+                        return true;
+                    }
+                    world = getServer().getWorld(args[1]);
+                    xCenter = Integer.parseInt(args[2]);
+                    zCenter = Integer.parseInt(args[3]);
+                }
+                xStart = xCenter - radius;
+                xEnd = xCenter + radius;
+                zStart = zCenter - radius;
+                zEnd = zCenter + radius;
+                if (args.length == 2) maxLoadedChunks = Integer.parseInt(args[1]);
+                else if (args.length == 5) maxLoadedChunks = Integer.parseInt(args[4]);
+            }
+            else
+            {
+                world = getServer().getWorld(args[0]);
+                xStart = Integer.parseInt(args[1]);
+                zStart = Integer.parseInt(args[2]);
+                xEnd   = Integer.parseInt(args[3]);
+                zEnd   = Integer.parseInt(args[4]);
+                if (args.length == 6) maxLoadedChunks = Integer.parseInt(args[5]);
+            }
+            
             if (world == null)
             {
                 sender.sendMessage("[ForcegenChunks] World \"" + args[0] + "\" does not exist.");
                 return true;
             }
-            int xStart = Integer.parseInt(args[1]);
-            int zStart = Integer.parseInt(args[2]);
-            int xEnd   = Integer.parseInt(args[3]);
-            int zEnd   = Integer.parseInt(args[4]);
-            int maxLoadedChunks;
+            
             int loaded = world.getLoadedChunks().length;
-            if (args.length == 6) maxLoadedChunks = Integer.parseInt(args[5]);
-            else maxLoadedChunks = loaded + 800;
-            if (maxLoadedChunks < loaded + 200)
+            if (maxLoadedChunks < 0) maxLoadedChunks = loaded + 800;
+            else if (maxLoadedChunks < loaded + 200)
             {
                 sender.sendMessage("[ForcegenChunks] maxLoadedChunks too low, there are already " + loaded + " chunks loaded - need a value of at least " + (loaded + 200));
                 return true;
             }
+            
             if (xEnd - xStart < 1 || zEnd - zStart < 1)
             {
                 sender.sendMessage("[ForcegenChunks] xEnd and zEnd must be greater than xStart and zStart respectively.");
@@ -118,7 +177,8 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             int num = (xEnd - xStart + 1) * (zEnd - zStart + 1);
             sender.sendMessage("[ForcegenChunks] Starting generation of " + num + " Chunks (" + (num * 16) + " blocks.)");
             if (world.getPlayers().size() > 0) sender.sendMessage("[ForcegenChunks] ... Warning: There are currently players in this world. If players wander into the generation zone, generation will not finish until they leave.");
-            this.generateChunks(world, xStart, xEnd, zStart, zEnd, maxLoadedChunks);
+
+            this.generateChunks(world, xStart, xEnd, zStart, zEnd, maxLoadedChunks, radius, xCenter, zCenter);
         }
         else if (commandLabel.compareToIgnoreCase("cancelforcegenchunks") == 0 || commandLabel.compareToIgnoreCase("cancelforcegen") == 0)
         {
@@ -138,7 +198,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         return true;
     }
 
-    public boolean generateChunks(World world, int xStart, int xEnd, int zStart, int zEnd, int maxLoadedChunks)
+    public boolean generateChunks(World world, int xStart, int xEnd, int zStart, int zEnd, int maxLoadedChunks, int radius, int xCenter, int zCenter)
     {
         if (this.taskId != 0) return false;
 
@@ -159,6 +219,9 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         this.xEnd = xEnd;
         this.zStart = zStart;
         this.zEnd = zEnd;
+        this.xCenter = xCenter;
+        this.zCenter = zCenter;
+        this.radius = radius;
         this.taskId = getServer().getScheduler().scheduleSyncRepeatingTask(this, this, 50, 50);
         return true;
     }
@@ -221,7 +284,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         int z1 = this.zNext - 2;
         int z2 = Math.min(z1 + this.BLOCKSIZE - 1, this.zEnd + 2);
 
-        System.out.println("[ForcegenChunks] Loading " + ((x2 - x1 + 1) * (z2 - z1 + 1)) + " chunks from ["+x1+","+z1+"] to ["+x2+","+z2+"], " + loaded + " currently loaded.");
+        System.out.println("[ForcegenChunks] Generating " + ((x2 - x1 + 1) * (z2 - z1 + 1)) + " chunk region from ["+x1+","+z1+"] to ["+x2+","+z2+"], " + loaded + " currently loaded.");
 
         for (int nx = x1; nx <= x2; nx++)
         {
@@ -229,6 +292,9 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             {
                 if (!world.isChunkLoaded(nx, nz))
                 {
+                    // If we're doing a circular generation, this block might be skipped
+                    if ((radius > 0) && (radius < Math.sqrt((double)(Math.pow(Math.abs(nx - xCenter),2) + Math.pow(Math.abs(nz - zCenter),2)))))
+                            continue;
                     // Keep tracks of chunks we caused to load so we can unload them
                     ourChunks.add(new ChunkXZ(nx, nz));
                     world.loadChunk(nx, nz, true);
