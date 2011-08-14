@@ -41,12 +41,31 @@ import org.bukkit.scheduler.BukkitScheduler;
 public class ForcegenChunks extends JavaPlugin implements Runnable
 {
     private final static String VERSION = "1.2";
+    // see comment in freeLoadedChunks
+    private final static int MAX_UNLOAD_REQUESTS = 20;
     private class ChunkXZ
     {
-        private int x; private int z;
-        ChunkXZ(int x, int z) { this.x = x; this.z = z; }
+        private int x, z, unloadRequests = 0;
+        private World world;
+        ChunkXZ(int x, int z, World world) { this.x = x; this.z = z; this.world = world; }
         public int getX() { return x; }
         public int getZ() { return z; }
+        public boolean tryUnload()
+        {
+            if (this.unloadRequests >= MAX_UNLOAD_REQUESTS)
+                return true;
+            
+            if (this.world.isChunkLoaded(this.x, this.z))
+            {
+                this.world.unloadChunkRequest(x, z, true);
+                this.unloadRequests++;
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
     }
     // Max size of each block chunk to load at a time
     // A size of 12 would result in 16*16=256 blocks loaded per tick
@@ -65,6 +84,8 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
     private int xCenter;
     private int zCenter;
     private int maxLoadedChunks;
+    // If the generation is done but we're waiting on chunks
+    private boolean waiting;
     private CommandSender commandSender;
     
     public void onEnable()
@@ -75,31 +96,44 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
     // Print messages on both the console and to the player involved.
     private void replyMsg(String str)
     {
-        // commandSender might be the console, so dont' duplicate messages
         boolean alsoSendToConsole = true;
         if (this.commandSender != null)
         {
+            // If we cannot cast the commandSender to player,
+            // we assume it is the console, and don't send
+            // duplicate output.
             try { Player p = (Player)this.commandSender; }
             catch (ClassCastException e) { alsoSendToConsole = false; }
             
             this.commandSender.sendMessage("[ForcegenChunks] " + str);
         }
-        if (alsoSendToConsole) System.out.println("[ForcegenChunks] " + str);
+        
+        if (alsoSendToConsole)
+            System.out.println("[ForcegenChunks] " + str);
     }
 
     public void onDisable()
     {
-        if (this.taskId != 0)
+        if (this.taskId != 0 && !this.waiting)
         {
-            replyMsg("Unloading, aborting generation");
+            replyMsg("Plugin unloaded, aborting generation.");
             getServer().getScheduler().cancelTask(this.taskId);
             this.taskId = 0;
+            this.commandSender = null;
         }
+        // this can cause zombie chunks since we can no longer wait.
+        // But it's better than force unloading them and all the bugs
+        // that would cause (lighting errors - unloading chunks players
+        // are on/near... much worse than a minor transient memory leak)
         this.freeLoadedChunks();
     }
 
     public boolean onCommand(CommandSender sender, Command cmd, String commandLabel, String[] args)
     {
+        boolean isPlayer = true;
+        try { Player p = (Player)sender; }
+        catch (ClassCastException e) { isPlayer = false; }
+        
         boolean bCircular = commandLabel.compareToIgnoreCase("forcegencircle") == 0;
         if (bCircular || commandLabel.compareToIgnoreCase("forcegenchunks") == 0 || commandLabel.compareToIgnoreCase("forcegen") == 0)
         {
@@ -108,7 +142,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
                 sender.sendMessage("[ForcegenChunks] Requires op status.");
                 return true;
             }
-            if (this.taskId != 0)
+            if (this.taskId != 0 && !this.waiting)
             {
                 sender.sendMessage("[ForcegenChunks] Generation already in progress.");
                 return true;
@@ -130,10 +164,6 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
                     sender.sendMessage("[ForcegenChunks] Radius must be > 1!");
                     return true;
                 }
-                
-                boolean isPlayer = true;
-                try { Player p = (Player)sender; }
-                catch (ClassCastException e) { isPlayer = false; }
                 
                 if (isPlayer && args.length < 4)
                 {
@@ -190,25 +220,22 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
                 sender.sendMessage("[ForcegenChunks] xEnd and zEnd must be greater than xStart and zStart respectively.");
                 return true;
             }
-            int num = (xEnd - xStart + 1) * (zEnd - zStart + 1);
-            sender.sendMessage("[ForcegenChunks] Starting generation of " + num + " Chunks (" + (num * 16) + " blocks.)");
-            if (world.getPlayers().size() > 0) sender.sendMessage("[ForcegenChunks] ... Warning: There are currently players in this world. If players wander into the generation zone, generation will not finish until they leave.");
 
             this.generateChunks(world, xStart, xEnd, zStart, zEnd, maxLoadedChunks, radius, xCenter, zCenter, sender);
         }
         else if (commandLabel.compareToIgnoreCase("cancelforcegenchunks") == 0 || commandLabel.compareToIgnoreCase("cancelforcegen") == 0)
         {
-            if (this.taskId == 0 || this.zNext > this.zEnd)
+            if (this.waiting || this.taskId == 0)
             {
                 sender.sendMessage("[ForcegenChunks] There is no chunk generation in progress");
                 return true;
             }
             else
             {
-                // Push it past the end of the region, so it will still
-                // continue the task while waiting for unloaded chunks.
-                this.zNext = this.zEnd + 1;
-                sender.sendMessage("[ForcegenChunks] Canceling generation, waiting for remaining chunks to unload");
+                if (isPlayer && this.commandSender != sender)
+                    sender.sendMessage("[ForcegenChunks] Generation canceled");
+                replyMsg("Generation canceled by " + (isPlayer ? ("player '" + ((Player)sender).getName() + "'") : "the console"));
+                this.cancelGeneration();
             }
         }
         return true;
@@ -239,7 +266,15 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         this.zCenter = zCenter;
         this.radius = radius;
         this.commandSender = commandSender;
+        this.waiting = false;
         this.taskId = getServer().getScheduler().scheduleSyncRepeatingTask(this, this, 50, 50);
+        
+        boolean isPlayer = true;
+        try { Player p = (Player)commandSender; }
+        catch (ClassCastException e) { isPlayer = false; }
+        
+        int num = (xEnd - xStart + 1) * (zEnd - zStart + 1);
+        replyMsg((isPlayer ? "Player '" + ((Player)commandSender).getName() + "'" : "The console") + " started generation of " + num + " Chunks (" + (num * 16) + " blocks).");
         return true;
     }
 
@@ -247,23 +282,35 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
     {
         // requesting an unloaded chunk wont always cause it to unload,
         // causing misc chunks to pile up, so we keep issueing unload requests
-        // until the chunk disappears. This is why players near the generation
-        // area can cause the plugin to sit on 'waiting for chunks to unload'
-        // until they leave.
+        // until the chunk disappears. These chunks might never even unload
+        // (IE they're part of the spawn radius or some such), so after we
+        // reach MAX_UNLOAD_REQUESTS we assume the chunk has some reason
+        // to live.
         for (int i = ourChunks.size() - 1; i >= 0; i--)
         {
-            int x = ourChunks.get(i).getX();
-            int z = ourChunks.get(i).getZ();
-            if (world.isChunkLoaded(x, z))
-            {
-                world.unloadChunkRequest(x, z, true);
-            }
-            else
-            {
+            if (ourChunks.get(i).tryUnload())
                 ourChunks.remove(i);
-            }
         }
         return ourChunks.size();
+    }
+    
+    public void cancelGeneration()
+    {
+        if (this.taskId != 0 && !this.waiting)
+        {
+            this.zNext = this.zEnd + 1;
+            this.waiting = true;
+        }
+    }
+    
+    // use cancelGeneration to stop generation, this should only be used internally
+    private void endTask()
+    {
+        if (this.taskId != 0)
+            getServer().getScheduler().cancelTask(this.taskId);
+        this.taskId = 0;
+        this.commandSender = null;
+        this.waiting = false;
     }
 
     public void run()
@@ -276,16 +323,14 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
 
         if (this.zNext > this.zEnd)
         {
-            if (remainingChunks > 0)
-            {
-                replyMsg("Waiting for "+remainingChunks+" chunks to finish unloading, " + loaded + " chunks currently loaded.");
-                if (world.getPlayers().size() > 0) replyMsg("-- There are players in this world, some chunks may not finish unloading until they leave.");
-            }
-            else
+            if (!this.waiting)
             {
                 replyMsg("Finished generating, " + loaded + " chunks currently loaded.");
-                getServer().getScheduler().cancelTask(this.taskId);
-                this.taskId = 0;
+                this.waiting = true;
+            }
+            if (remainingChunks == 0)
+            {
+                this.endTask();
             }
             return;
         }
@@ -313,7 +358,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
                     if ((radius > 0) && (radius < Math.sqrt((double)(Math.pow(Math.abs(nx - xCenter),2) + Math.pow(Math.abs(nz - zCenter),2)))))
                             continue;
                     // Keep tracks of chunks we caused to load so we can unload them
-                    ourChunks.add(new ChunkXZ(nx, nz));
+                    ourChunks.add(new ChunkXZ(nx, nz, world));
                     world.loadChunk(nx, nz, true);
                 }
             }
