@@ -125,9 +125,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         if (this.taskId != 0 && !this.waiting)
         {
             replyMsg("Plugin unloaded, aborting generation.");
-            getServer().getScheduler().cancelTask(this.taskId);
-            this.taskId = 0;
-            this.commandSender = null;
+            this.endTask();
         }
         // this can cause zombie chunks since we can no longer wait.
         // But it's better than force unloading them and all the bugs
