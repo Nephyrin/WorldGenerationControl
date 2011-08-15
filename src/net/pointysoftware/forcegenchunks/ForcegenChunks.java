@@ -242,7 +242,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             {
                 if (isPlayer && this.commandSender != sender)
                     replyMsg("Generation canceled", sender);
-                replyMsg("Generation canceled by " + (isPlayer ? ("player " + ChatColor.GOLD + ((Player)sender).getName() + ChatColor.WHITE) : "the console"));
+                replyMsg("Generation canceled by " + (isPlayer ? ("player " + ChatColor.GOLD + ((Player)sender).getName() + ChatColor.WHITE) : "the console") + ", waiting for remaining chunks to unload.");
                 this.cancelGeneration();
             }
         }
@@ -333,11 +333,12 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         {
             if (!this.waiting)
             {
-                replyMsg("Finished generating, " + loaded + " chunks currently loaded.");
+                replyMsg("Finished generating, " + loaded + " chunks currently loaded. Waiting for " + remainingChunks + "to finish unloading...");
                 this.waiting = true;
             }
             if (remainingChunks == 0)
             {
+                replyMsg("All outstanding chunks cleaned up, have a nice day! (Currently " + loaded + " chunks loaded)");
                 this.endTask();
             }
             return;
