@@ -187,6 +187,11 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
                         return true;
                     }
                     world = getServer().getWorld(args[1]);
+                    if (world == null)
+                    {
+                        replyMsg("World \"" + ChatColor.GOLD + args[1] + ChatColor.WHITE + "\" does not exist.", sender);
+                        return true;
+                    }
                     xCenter = Integer.parseInt(args[2]);
                     zCenter = Integer.parseInt(args[3]);
                 }
@@ -200,17 +205,16 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             else
             {
                 world = getServer().getWorld(args[0]);
+                if (world == null)
+                {
+                    replyMsg("World \"" + ChatColor.GOLD + args[0] + ChatColor.WHITE + "\" does not exist.", sender);
+                    return true;
+                }
                 xStart = Integer.parseInt(args[1]);
                 zStart = Integer.parseInt(args[2]);
                 xEnd   = Integer.parseInt(args[3]);
                 zEnd   = Integer.parseInt(args[4]);
                 if (args.length == 6) maxLoadedChunks = Integer.parseInt(args[5]);
-            }
-            
-            if (world == null)
-            {
-                replyMsg("That world does not exist.", sender);
-                return true;
             }
             
             int loaded = world.getLoadedChunks().length;
