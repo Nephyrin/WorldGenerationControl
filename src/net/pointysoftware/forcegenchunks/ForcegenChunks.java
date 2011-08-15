@@ -251,7 +251,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
 
     public boolean generateChunks(World world, int xStart, int xEnd, int zStart, int zEnd, int maxLoadedChunks, int radius, int xCenter, int zCenter, CommandSender commandSender)
     {
-        if (this.taskId != 0) return false;
+        if (!this.waiting && this.taskId != 0) return false;
 
         // The generation routine adds 2 to the edges of the generation cells
         // so bump these borders in by two (if possible) to avoid generating
