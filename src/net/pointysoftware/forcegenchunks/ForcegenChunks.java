@@ -33,6 +33,8 @@ import org.bukkit.World;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
+import org.bukkit.ChatColor;
+
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 
@@ -93,23 +95,29 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         replyMsg("v"+VERSION+" Loaded");
     }
     
-    // Print messages on both the console and to the player involved.
+    // Send the command initiator and the console
+    // a message, but don't send duplicates if the
+    // console is the command initator.
     private void replyMsg(String str)
     {
-        boolean alsoSendToConsole = true;
-        if (this.commandSender != null)
+        this.replyMsg(str, this.commandSender, false);
+    }
+    private void replyMsg(String str, CommandSender sender)
+    {
+        this.replyMsg(str, sender, true);
+    }
+    private void replyMsg(String str, CommandSender sender, boolean senderOnly)
+    {
+        Player p = null;
+        try
         {
-            // If we cannot cast the commandSender to player,
-            // we assume it is the console, and don't send
-            // duplicate output.
-            try { Player p = (Player)this.commandSender; }
-            catch (ClassCastException e) { alsoSendToConsole = false; }
-            
-            this.commandSender.sendMessage("[ForcegenChunks] " + str);
-        }
+            if (sender != null)
+                p = (Player)sender;
+        } catch (ClassCastException e) {}
         
-        if (alsoSendToConsole)
-            System.out.println("[ForcegenChunks] " + str);
+        if (p != null)
+            p.sendMessage(ChatColor.DARK_GRAY + "[" + ChatColor.GRAY + "ForcegenChunks" + ChatColor.DARK_GRAY + "]" + ChatColor.WHITE + " " + str);
+        if (p == null || !senderOnly) System.out.println("[ForcegenChunks] " + ChatColor.stripColor(str));
     }
 
     public void onDisable()
@@ -139,12 +147,12 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         {
             if (!sender.isOp())
             {
-                sender.sendMessage("[ForcegenChunks] Requires op status.");
+                replyMsg("Requires op status.", sender);
                 return true;
             }
             if (this.taskId != 0 && !this.waiting)
             {
-                sender.sendMessage("[ForcegenChunks] Generation already in progress.");
+                replyMsg("Generation already in progress.", sender);
                 return true;
             }
             if     ((bCircular && (args.length != 1 && args.length != 2 && args.length != 4 && args.length != 5))
@@ -161,7 +169,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
                 radius = Integer.parseInt(args[0]);
                 if (radius < 1)
                 {
-                    sender.sendMessage("[ForcegenChunks] Radius must be > 1!");
+                    replyMsg("Radius must be > 1", sender);
                     return true;
                 }
                 
@@ -177,7 +185,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
                 {
                     if (args.length < 4)
                     {
-                        sender.sendMessage("[ForcegenChunks] You're not a player, so you need to specify a world name and location.");
+                        replyMsg("You're not a player, so you need to specify a world name and location.", sender);
                         return true;
                     }
                     world = getServer().getWorld(args[1]);
@@ -203,7 +211,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             
             if (world == null)
             {
-                sender.sendMessage("[ForcegenChunks] That world does not exist.");
+                replyMsg("That world does not exist.", sender);
                 return true;
             }
             
@@ -211,13 +219,13 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             if (maxLoadedChunks < 0) maxLoadedChunks = loaded + 800;
             else if (maxLoadedChunks < loaded + 200)
             {
-                sender.sendMessage("[ForcegenChunks] maxLoadedChunks too low, there are already " + loaded + " chunks loaded - need a value of at least " + (loaded + 200));
+                replyMsg("maxLoadedChunks too low, there are already " + loaded + " chunks loaded - need a value of at least " + (loaded + 200), sender);
                 return true;
             }
             
             if (xEnd - xStart < 1 || zEnd - zStart < 1)
             {
-                sender.sendMessage("[ForcegenChunks] xEnd and zEnd must be greater than xStart and zStart respectively.");
+                replyMsg("xEnd and zEnd must be greater than xStart and zStart respectively.", sender);
                 return true;
             }
 
@@ -227,14 +235,14 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         {
             if (this.waiting || this.taskId == 0)
             {
-                sender.sendMessage("[ForcegenChunks] There is no chunk generation in progress");
+                replyMsg("There is no chunk generation in progress", sender);
                 return true;
             }
             else
             {
                 if (isPlayer && this.commandSender != sender)
-                    sender.sendMessage("[ForcegenChunks] Generation canceled");
-                replyMsg("Generation canceled by " + (isPlayer ? ("player '" + ((Player)sender).getName() + "'") : "the console"));
+                    replyMsg("Generation canceled", sender);
+                replyMsg("Generation canceled by " + (isPlayer ? ("player " + ChatColor.GOLD + ((Player)sender).getName() + ChatColor.WHITE) : "the console"));
                 this.cancelGeneration();
             }
         }
@@ -274,7 +282,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         catch (ClassCastException e) { isPlayer = false; }
         
         int num = (xEnd - xStart + 1) * (zEnd - zStart + 1);
-        replyMsg((isPlayer ? "Player '" + ((Player)commandSender).getName() + "'" : "The console") + " started generation of " + num + " Chunks (" + (num * 16) + " blocks).");
+        replyMsg((isPlayer ? ("Player " + ChatColor.GOLD + ((Player)commandSender).getName() + ChatColor.WHITE) : "The console") + " started generation of " + num + " Chunks (" + (num * 16) + " blocks).");
         return true;
     }
 
