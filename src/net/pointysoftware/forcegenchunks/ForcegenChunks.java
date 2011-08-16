@@ -411,7 +411,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         {
             if (!this.waiting)
             {
-                replyMsg("Finished generating, " + loaded + " chunks currently loaded. Waiting for " + remainingChunks + "to finish unloading...");
+                replyMsg("Finished generating, waiting for " + remainingChunks + " chunks to finish unloading. (Currently " + loaded + " chunks loaded)");
                 this.waiting = true;
             }
             if (remainingChunks == 0)
