@@ -22,6 +22,8 @@
 package net.pointysoftware.forcegenchunks;
 
 import java.util.ArrayList;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
@@ -69,6 +71,58 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             }
         }
     }
+    
+    // *very* simple class the parse arguments with quoting
+    private class NiceArgsParseIntException extends Throwable
+    {
+        private String argName, badValue;
+        NiceArgsParseIntException(String argName, String badValue)
+        {
+            this.argName = argName;
+            this.badValue = badValue;
+        }
+        public String getName() { return this.argName; }
+        public String getBadValue() { return this.badValue; }
+    }
+    private class NiceArgsParseException extends Throwable {}
+    private class NiceArgs
+    {
+        private ArrayList<String> cleanArgs;
+        private int[] parsedInts;
+        NiceArgs(String[] args) throws NiceArgsParseException
+        {
+            String allargs = "";
+            for (int x = 0; x < args.length; x++)
+                allargs += (allargs.length() > 0 ? " " : "") + args[x];
+
+            cleanArgs = new ArrayList<String>();
+
+            // Matches any list of items delimited by spaces. An item can have quotes around it to escape spaces
+            // inside said quotes. Also honors escape sequences
+            // E.g. arg1 "arg2 stillarg2" arg3 "arg4 \"bob\" stillarg4" arg5\ stillarg5
+            Matcher m = Pattern.compile("\\s*(?:\\\"((?:[^\\\"\\\\]|\\\\.)*)\\\"|((?:[^\\s\\\\\\\"]|\\\\(?:.|$))+))(?:\\s|$)").matcher(allargs);
+            while (m.regionStart() < m.regionEnd())
+            {
+                if (m.lookingAt())
+                {
+                    cleanArgs.add((m.group(1) == null ? m.group(2) : m.group(1)).replaceAll("\\\\(.|$)", "$1"));
+                    m.region(m.end(), m.regionEnd());
+                }
+                else
+                    throw new NiceArgsParseException();
+            }
+        }
+        public int length() { return this.cleanArgs.size(); }
+        public String get(int x) { return this.cleanArgs.get(x); }
+        public int getInt(int i, String argName) throws NiceArgsParseIntException
+        {
+            try
+                { return Integer.parseInt(this.cleanArgs.get(i)); }
+            catch (NumberFormatException e)
+                { throw new NiceArgsParseIntException(argName, this.cleanArgs.get(i)); }
+        }
+    }
+    
     // Max size of each block chunk to load at a time
     // A size of 12 would result in 16*16=256 blocks loaded per tick
     private static final int BLOCKSIZE = 16;
@@ -134,11 +188,24 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         this.freeLoadedChunks();
     }
 
-    public boolean onCommand(CommandSender sender, Command cmd, String commandLabel, String[] args)
+    
+
+    public boolean onCommand(CommandSender sender, Command cmd, String commandLabel, String[] rawargs)
     {
         boolean isPlayer = true;
         try { Player p = (Player)sender; }
         catch (ClassCastException e) { isPlayer = false; }
+        
+        NiceArgs args;
+        try
+        {
+            args = new NiceArgs(rawargs);
+        }
+        catch (NiceArgsParseException e)
+        {
+            replyMsg("Error - Mismatched/errant quotes in arguments. You can escape quotes in world names with backslashes, e.g. \\\"", sender);
+            return true;
+        }
         
         boolean bCircular = commandLabel.compareToIgnoreCase("forcegencircle") == 0;
         if (bCircular || commandLabel.compareToIgnoreCase("forcegenchunks") == 0 || commandLabel.compareToIgnoreCase("forcegen") == 0)
@@ -153,8 +220,8 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
                 replyMsg("Generation already in progress.", sender);
                 return true;
             }
-            if     ((bCircular && (args.length != 1 && args.length != 2 && args.length != 4 && args.length != 5))
-                || (!bCircular && (args.length != 5 && args.length != 6)))
+            if     ((bCircular && (args.length() != 1 && args.length() != 2 && args.length() != 4 && args.length() != 5))
+                || (!bCircular && (args.length() != 5 && args.length() != 6)))
             {
                 return false;
             }
@@ -162,59 +229,68 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             World world = null;
             int maxLoadedChunks = -1;
             int xCenter = 0, zCenter = 0, xStart, zStart, xEnd, zEnd, radius = 0;
-            if (bCircular)
+            try
             {
-                radius = Integer.parseInt(args[0]);
-                if (radius < 1)
+                if (bCircular)
                 {
-                    replyMsg("Radius must be > 1", sender);
-                    return true;
-                }
-                
-                if (isPlayer && args.length < 4)
-                {
-                    // Use player's location to center circle
-                    Chunk c = ((Player)sender).getLocation().getBlock().getChunk();
-                    world = c.getWorld();
-                    xCenter = c.getX();
-                    zCenter = c.getZ();
+                    radius = args.getInt(0, "radius");
+
+                    if (radius < 1)
+                    {
+                        replyMsg("Radius must be > 1", sender);
+                        return true;
+                    }
+                    
+                    if (isPlayer && args.length() < 4)
+                    {
+                        // Use player's location to center circle
+                        Chunk c = ((Player)sender).getLocation().getBlock().getChunk();
+                        world = c.getWorld();
+                        xCenter = c.getX();
+                        zCenter = c.getZ();
+                    }
+                    else
+                    {
+                        if (args.length() < 4)
+                        {
+                            replyMsg("You're not a player, so you need to specify a world name and location.", sender);
+                            return true;
+                        }
+                        world = getServer().getWorld(args.get(1));
+                        if (world == null)
+                        {
+                            replyMsg("World \"" + ChatColor.GOLD + args.get(1) + ChatColor.WHITE + "\" does not exist.", sender);
+                            return true;
+                        }
+                        xCenter = args.getInt(2, "xCenter");
+                        zCenter = args.getInt(3, "zCenter");
+                    }
+                    xStart = xCenter - radius;
+                    xEnd = xCenter + radius;
+                    zStart = zCenter - radius;
+                    zEnd = zCenter + radius;
+                    if (args.length() == 2) maxLoadedChunks = args.getInt(1, "maxLoadedChunks");
+                    else if (args.length() == 5) maxLoadedChunks = args.getInt(4, "maxLoadedChunks");
                 }
                 else
                 {
-                    if (args.length < 4)
-                    {
-                        replyMsg("You're not a player, so you need to specify a world name and location.", sender);
-                        return true;
-                    }
-                    world = getServer().getWorld(args[1]);
+                    world = getServer().getWorld(args.get(0));
                     if (world == null)
                     {
-                        replyMsg("World \"" + ChatColor.GOLD + args[1] + ChatColor.WHITE + "\" does not exist.", sender);
+                        replyMsg("World \"" + ChatColor.GOLD + args.get(0) + ChatColor.WHITE + "\" does not exist.", sender);
                         return true;
                     }
-                    xCenter = Integer.parseInt(args[2]);
-                    zCenter = Integer.parseInt(args[3]);
+                    xStart = args.getInt(1, "xStart");
+                    zStart = args.getInt(2, "zStart");
+                    xEnd   = args.getInt(3, "xEnd");
+                    zEnd   = args.getInt(4, "zEnd");
+                    if (args.length() == 6) maxLoadedChunks = args.getInt(5, "maxLoadedChunks");
                 }
-                xStart = xCenter - radius;
-                xEnd = xCenter + radius;
-                zStart = zCenter - radius;
-                zEnd = zCenter + radius;
-                if (args.length == 2) maxLoadedChunks = Integer.parseInt(args[1]);
-                else if (args.length == 5) maxLoadedChunks = Integer.parseInt(args[4]);
             }
-            else
+            catch (NiceArgsParseIntException e)
             {
-                world = getServer().getWorld(args[0]);
-                if (world == null)
-                {
-                    replyMsg("World \"" + ChatColor.GOLD + args[0] + ChatColor.WHITE + "\" does not exist.", sender);
-                    return true;
-                }
-                xStart = Integer.parseInt(args[1]);
-                zStart = Integer.parseInt(args[2]);
-                xEnd   = Integer.parseInt(args[3]);
-                zEnd   = Integer.parseInt(args[4]);
-                if (args.length == 6) maxLoadedChunks = Integer.parseInt(args[5]);
+                replyMsg("Error: " + e.getName() + " argument must be a number, not \"" + e.getBadValue() + "\"", sender);
+                return true;
             }
             
             int loaded = world.getLoadedChunks().length;
