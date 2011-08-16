@@ -44,7 +44,7 @@ import org.bukkit.scheduler.BukkitScheduler;
 
 public class ForcegenChunks extends JavaPlugin implements Runnable
 {
-    private final static String VERSION = "1.2";
+    private final static String VERSION = "1.3";
     // see comment in freeLoadedChunks
     private final static int MAX_UNLOAD_REQUESTS = 20;
     private class ChunkXZ
