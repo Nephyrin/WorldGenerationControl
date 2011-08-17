@@ -428,7 +428,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         double pctX = (double)remainingX / totalWidth;
         double pct = 1 - (((double)remainingZ + pctX * rowHeight) / totalHeight);
         
-        replyMsg("[" + String.format("%.2f", 100*pct) + "%] Generating " + ((x2 - x1 + 1) * (z2 - z1 + 1)) + " chunk region from ["+x1+","+z1+"] to ["+x2+","+z2+"], " + loaded + " currently loaded.");
+        replyMsg(ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.WHITE + " Generating " + ((x2 - x1 + 1) * (z2 - z1 + 1)) + " chunk region from ["+x1+","+z1+"] to ["+x2+","+z2+"], " + loaded + " currently loaded.");
 
         for (int nx = x1; nx <= x2; nx++)
         {
