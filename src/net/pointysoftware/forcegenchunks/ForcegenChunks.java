@@ -420,7 +420,15 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         int z1 = this.zNext - 2;
         int z2 = Math.min(z1 + this.BLOCKSIZE - 1, this.zEnd + 2);
 
-        replyMsg("Generating " + ((x2 - x1 + 1) * (z2 - z1 + 1)) + " chunk region from ["+x1+","+z1+"] to ["+x2+","+z2+"], " + loaded + " currently loaded.");
+        int totalWidth = this.xEnd - this.xStart + 1;
+        int remainingX = this.xEnd - Math.min(this.xEnd, x2);
+        int remainingZ = this.zEnd - Math.min(this.zEnd, z2);
+        int rowHeight = Math.min(this.zEnd, z2) - this.zNext + 1;
+        int totalHeight = this.zEnd - this.zStart + 1;
+        double pctX = (double)remainingX / totalWidth;
+        double pct = 1 - (((double)remainingZ + pctX * rowHeight) / totalHeight);
+        
+        replyMsg("[" + String.format("%.2f", 100*pct) + "%] Generating " + ((x2 - x1 + 1) * (z2 - z1 + 1)) + " chunk region from ["+x1+","+z1+"] to ["+x2+","+z2+"], " + loaded + " currently loaded.");
 
         for (int nx = x1; nx <= x2; nx++)
         {
