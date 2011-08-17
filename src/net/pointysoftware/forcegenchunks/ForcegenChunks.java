@@ -162,16 +162,11 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
     }
     private void replyMsg(String str, CommandSender sender, boolean senderOnly)
     {
-        Player p = null;
-        try
-        {
-            if (sender != null)
-                p = (Player)sender;
-        } catch (ClassCastException e) {}
+        boolean isPlayer = (sender != null && sender instanceof Player);
         
-        if (p != null)
-            p.sendMessage(ChatColor.DARK_GRAY + "[" + ChatColor.GRAY + "ForcegenChunks" + ChatColor.DARK_GRAY + "]" + ChatColor.WHITE + " " + str);
-        if (p == null || !senderOnly) System.out.println("[ForcegenChunks] " + ChatColor.stripColor(str));
+        if (isPlayer)
+            ((Player)sender).sendMessage(ChatColor.DARK_GRAY + "[" + ChatColor.GRAY + "ForcegenChunks" + ChatColor.DARK_GRAY + "]" + ChatColor.WHITE + " " + str);
+        if (!isPlayer || !senderOnly) System.out.println("[ForcegenChunks] " + ChatColor.stripColor(str));
     }
 
     public void onDisable()
@@ -192,10 +187,6 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
 
     public boolean onCommand(CommandSender sender, Command cmd, String commandLabel, String[] rawargs)
     {
-        boolean isPlayer = true;
-        try { Player p = (Player)sender; }
-        catch (ClassCastException e) { isPlayer = false; }
-        
         NiceArgs args;
         try
         {
@@ -241,7 +232,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
                         return true;
                     }
                     
-                    if (isPlayer && args.length() < 4)
+                    if (sender instanceof Player && args.length() < 4)
                     {
                         // Use player's location to center circle
                         Chunk c = ((Player)sender).getLocation().getBlock().getChunk();
@@ -318,9 +309,9 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             }
             else
             {
-                if (isPlayer && this.commandSender != sender)
+                if (sender instanceof Player && this.commandSender != sender)
                     replyMsg("Generation canceled", sender);
-                replyMsg("Generation canceled by " + (isPlayer ? ("player " + ChatColor.GOLD + ((Player)sender).getName() + ChatColor.WHITE) : "the console") + ", waiting for remaining chunks to unload.");
+                replyMsg("Generation canceled by " + (sender instanceof Player ? ("player " + ChatColor.GOLD + ((Player)sender).getName() + ChatColor.WHITE) : "the console") + ", waiting for remaining chunks to unload.");
                 this.cancelGeneration();
             }
         }
@@ -355,12 +346,8 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         this.waiting = false;
         this.taskId = getServer().getScheduler().scheduleSyncRepeatingTask(this, this, 50, 50);
         
-        boolean isPlayer = true;
-        try { Player p = (Player)commandSender; }
-        catch (ClassCastException e) { isPlayer = false; }
-        
         int num = (xEnd - xStart + 1) * (zEnd - zStart + 1);
-        replyMsg((isPlayer ? ("Player " + ChatColor.GOLD + ((Player)commandSender).getName() + ChatColor.WHITE) : "The console") + " started generation of " + num + " Chunks (" + (num * 16) + " blocks).");
+        replyMsg((commandSender instanceof Player ? ("Player " + ChatColor.GOLD + ((Player)commandSender).getName() + ChatColor.WHITE) : "The console") + " started generation of " + num + " Chunks (" + (num * 16) + " blocks).");
         return true;
     }
 
