@@ -143,6 +143,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
     // If the generation is done but we're waiting on chunks
     private boolean waiting;
     private CommandSender commandSender;
+    private long lastLoadedComplaint;
     
     public void onEnable()
     {
@@ -411,7 +412,12 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
 
         if (loaded > this.maxLoadedChunks)
         {
-            replyMsg("More than " + this.maxLoadedChunks + " chunks loaded (" + loaded + "), waiting for some to finish unloading");
+            long timems = System.currentTimeMillis();
+            if (timems > this.lastLoadedComplaint + 30000)
+            {
+                replyMsg("More than " + this.maxLoadedChunks + " chunks loaded (" + loaded + " loaded, max "+this.maxLoadedChunks+"), waiting for some to finish unloading.");
+                this.lastLoadedComplaint = timems;
+            }
             return;
         }
 
