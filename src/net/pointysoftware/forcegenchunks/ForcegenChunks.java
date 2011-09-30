@@ -47,11 +47,11 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
     private final static String VERSION = "1.4";
     // see comment in freeLoadedChunks
     private final static int MAX_UNLOAD_REQUESTS = 20;
-    private class ChunkXZ
+    private class GenerationChunk
     {
         private int x, z, unloadRequests = 0;
         private World world;
-        ChunkXZ(int x, int z, World world) { this.x = x; this.z = z; this.world = world; }
+        GenerationChunk(int x, int z, World world) { this.x = x; this.z = z; this.world = world; }
         public int getX() { return x; }
         public int getZ() { return z; }
         public boolean tryUnload()
@@ -127,7 +127,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
     // A size of 12 would result in 16*16=256 blocks loaded per tick
     private static final int BLOCKSIZE = 16;
 
-    private ArrayList<ChunkXZ> ourChunks = new ArrayList<ChunkXZ>();
+    private ArrayList<GenerationChunk> ourChunks = new ArrayList<GenerationChunk>();
     private int taskId = 0;
     private World world;
     private int xStart;
@@ -446,7 +446,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
                     if ((radius > 0) && (radius < Math.sqrt((double)(Math.pow(Math.abs(nx - xCenter),2) + Math.pow(Math.abs(nz - zCenter),2)))))
                             continue;
                     // Keep tracks of chunks we caused to load so we can unload them
-                    ourChunks.add(new ChunkXZ(nx, nz, world));
+                    ourChunks.add(new GenerationChunk(nx, nz, world));
                     world.loadChunk(nx, nz, true);
                 }
             }
