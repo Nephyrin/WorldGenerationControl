@@ -47,11 +47,9 @@ import org.bukkit.scheduler.BukkitScheduler;
 public class ForcegenChunks extends JavaPlugin implements Runnable
 {
     private final static String VERSION = "1.4";
-    // see comment in freeLoadedChunks
-    private final static int MAX_UNLOAD_REQUESTS = 20;
     private class GenerationChunk
     {
-        private int x, z, unloadRequests = 0;
+        private int x, z;
         private World world;
         private Chunk chunk;
         GenerationChunk(int x, int z, World world) { this.x = x; this.z = z; this.world = world; }
@@ -119,14 +117,13 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         }
         public boolean tryUnload()
         {
-            if (this.unloadRequests >= MAX_UNLOAD_REQUESTS)
-                return true;
-            
             if (this.world.isChunkLoaded(this.x, this.z))
             {
-                this.world.unloadChunkRequest(x, z, true);
-                this.unloadRequests++;
-                return false;
+                // If this returns false, the chunk is loaded
+                // due to a nearby player, which means the world
+                // is managing it, which means we needn't worry
+                // about it.
+                return !this.world.unloadChunkRequest(x, z, true);
             }
             else
             {
@@ -419,10 +416,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
     {
         // requesting an unloaded chunk wont always cause it to unload,
         // causing misc chunks to pile up, so we keep issueing unload requests
-        // until the chunk disappears. These chunks might never even unload
-        // (IE they're part of the spawn radius or some such), so after we
-        // reach MAX_UNLOAD_REQUESTS we assume the chunk has some reason
-        // to live.
+        // until the chunk disappears.
         for (int i = ourChunks.size() - 1; i >= 0; i--)
         {
             if (ourChunks.get(i).tryUnload())
