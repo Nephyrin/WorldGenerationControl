@@ -33,6 +33,8 @@ import org.bukkit.Chunk;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.Location;
+import org.bukkit.entity.CreatureType;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 
 import org.bukkit.ChatColor;
@@ -51,9 +53,70 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
     {
         private int x, z, unloadRequests = 0;
         private World world;
+        private Chunk chunk;
         GenerationChunk(int x, int z, World world) { this.x = x; this.z = z; this.world = world; }
         public int getX() { return x; }
         public int getZ() { return z; }
+        // This references a lot of blocks, if calling this on a lot of chunks,
+        // a System.gc() afterwards might be necessary to prevent overhead errors.
+        public boolean fixLighting()
+        {
+            // Don't run this step on chunks without all adjacent chunks loaded, or it will
+            // actually corrupt the lighting
+            if (this.chuck != null
+                && this.world.isChunkLoaded(this.x - 1, this.z)
+                && this.world.isChunkLoaded(this.x, this.z - 1)
+                && this.world.isChunkLoaded(this.x + 1, this.z)
+                && this.world.isChunkLoaded(this.x, this.z + 1)
+                && this.world.isChunkLoaded(this.x - 1, this.z + 1)
+                && this.world.isChunkLoaded(this.x + 1, this.z + 1)
+                && this.world.isChunkLoaded(this.x - 1, this.z - 1)
+                && this.world.isChunkLoaded(this.x + 1, this.z - 1))
+            {
+                // Only fast lighting is done if no living entities are near.
+                // The solution is to create a noble chicken, who will be destroyed
+                // after the updates have been forced.
+                // Note that if we *didnt* update lighting, it would be updated
+                // the first time a player wanders near anyway, this is just
+                // a hack to make it happen at generation time.
+                int worldHeight = this.world.getMaxHeight();
+                // Center of the chunk. ish. Don't think it matters as long as he's in the chunk.
+                // Since he's removed at the end of this function he doesn't live for a single tick,
+                // so it doesn't matter if this puts him in a solid object - he doesn't have time to suffocate.
+                LivingEntity bobthechicken = this.world.spawnCreature(this.chunk.getBlock(8, worldHeight - 1, 8).getLocation(), CreatureType.CHICKEN);
+                ArrayList<BlockState> touchedblocks = new ArrayList<BlockState>();
+                for (int bx = 0; bx < 16; bx++) for (int bz = 0; bz < 16; bz++)
+                {
+                    Block bl = this.chunk.getBlock(bx, worldHeight - 1, bz);
+                    // All touched blocks have their state saved and re-applied after the loop.
+                    // TODO -
+                    // I *think* this should be safe, but I need to do testing on various tile
+                    // entities placed at max height to ensure it doesn't damage them.
+                    touchedblocks.add(bl.getState());
+                    // The way lighting works branches based on how far the skylight reaches down.
+                    // Thus by toggling the top block between solid and not, we force a lighting update
+                    // on this column of blocks.
+                    if (bl.isEmpty())
+                        bl.setType(Material.STONE);
+                    else
+                        bl.setType(Material.AIR);
+                }
+                // Tests show it's faster to set them all glowstone then back afterwards
+                // than it is to toggle each one in order.
+                for (BlockState s:touchedblocks)
+                    s.update(true);
+                
+                if (bobthechicken == null) bobthechicken.remove();
+                return true;
+            }
+            else return false;
+        }
+        public void load()
+        {
+            this.chunk = this.world.getChunk(this.x, this.z);
+            if (!this.chunk.isLoaded())
+                this.chunk.load(true);
+        }
         public boolean tryUnload()
         {
             if (this.unloadRequests >= MAX_UNLOAD_REQUESTS)
@@ -446,8 +509,9 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
                     if ((radius > 0) && (radius < Math.sqrt((double)(Math.pow(Math.abs(nx - xCenter),2) + Math.pow(Math.abs(nz - zCenter),2)))))
                             continue;
                     // Keep tracks of chunks we caused to load so we can unload them
-                    ourChunks.add(new GenerationChunk(nx, nz, world));
-                    world.loadChunk(nx, nz, true);
+                    GenerationChunk c = new GenerationChunk(nx, nz, world);
+                    c.load();
+                    ourChunks.add(c);
                 }
             }
         }
