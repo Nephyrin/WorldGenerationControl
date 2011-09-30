@@ -99,7 +99,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
                     else
                         bl.setType(Material.AIR);
                 }
-                // Tests show it's faster to set them all glowstone then back afterwards
+                // Tests show it's faster to set them all stone then back afterwards
                 // than it is to toggle each one in order.
                 for (BlockState s:touchedblocks)
                     s.update(true);
