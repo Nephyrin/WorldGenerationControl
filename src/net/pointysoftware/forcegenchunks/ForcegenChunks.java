@@ -104,7 +104,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
                 for (BlockState s:touchedblocks)
                     s.update(true);
                 
-                if (bobthechicken == null) bobthechicken.remove();
+                bobthechicken.remove();
                 return true;
             }
             else return false;
