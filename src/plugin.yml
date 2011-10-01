@@ -6,7 +6,7 @@ author: john@pointysoftware.net
 permissions:
    worldgenerationcontrol.generate:
       description: |
-      Allows user to queue generations. Implicitly grants worldgenerationcontrol.statusupdates.
+         Allows user to queue generations. Implicitly grants worldgenerationcontrol.statusupdates.
       children:
          worldgenerationcontrol.statusupdates: true
    worldgenerationcontrol.statusupdates:
