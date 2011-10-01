@@ -236,14 +236,22 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             public void reset() { x = xStart; z = zStart; }
             public GenerationChunk getChunk(World world)
             {
-                if (x > xEnd && z > zEnd)
-                    return null;
-                
-                GenerationChunk ret = new GenerationChunk(this.x++, this.z, world);
-                if (x > xEnd)
+                GenerationChunk ret = null;
+                while (ret == null)
                 {
-                    x = xStart;
-                    z++;
+                    if (x > xEnd && z > zEnd)
+                        return null;
+                    
+                    // Skip chunks outside circle radius
+                    if ((radius == 0) || (radius >= Math.sqrt((double)(Math.pow(Math.abs(x - xCenter),2) + Math.pow(Math.abs(z - zCenter),2)))))
+                        ret = new GenerationChunk(x, z, world);
+                    
+                    x++;
+                    if (x > xEnd)
+                    {
+                        x = xStart;
+                        z++;
+                    }
                 }
                 return ret;
             }
