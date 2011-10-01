@@ -21,7 +21,9 @@
 
 package net.pointysoftware.forcegenchunks;
 
+import java.util.Iterator;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
@@ -30,6 +32,9 @@ import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import org.bukkit.Chunk;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
+import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.Location;
@@ -47,6 +52,212 @@ import org.bukkit.scheduler.BukkitScheduler;
 public class ForcegenChunks extends JavaPlugin implements Runnable
 {
     private final static String VERSION = "1.4";
+    public enum GenerationSpeed
+    {
+        // Do everything on the same tick, locking up
+        // the server until the generation is complete.
+        ALLATONCE,
+        // Process whole regions per tick, extremely laggy.
+        VERYFAST,
+        // Split up region loading and lighting fixes
+        // laggy, but playable.
+        FAST,
+        // like fast, but smaller regions, moderate
+        // lag depending on conditions
+        NORMAL,
+        // even smaller regions, less lag
+        SLOW,
+        // tiny regions, very minimal lag, will
+        // take forever.
+        VERYSLOW
+    }
+    public enum GenerationLighting
+    {
+        // Force update every chunk without
+        // fullbright lighting, completely
+        // recalculating all lighting in the
+        // area. This will take 3x longer
+        // than the rest of the generation
+        // combined...
+        EXTREME,
+        // Force update all lighting by toggling
+        // skyblocks. This will easily double
+        // generation times, but give you proper
+        // lighting on generated chunks
+        NORMAL,
+        // Don't force lighting. Generated areas
+        // will have invalid lighting until a
+        // player wanders near them. This is only
+        // a problem if you want to use a external
+        // map that cares about lighting, or if
+        // you want to get the CPU time involved
+        // in lighting a chunk out of the way.
+        NONE
+    }
+    public class GenerationRegion
+    {
+        GenerationRegion(World world, GenerationSpeed speed, GenerationLighting lighting)
+        {
+            this.world = world;
+            this.speed = speed;
+            this.fixlighting = lighting;
+            this.pendinglighting = new ArrayDeque<GenerationChunk>();
+            this.pendingcleanup = new ArrayDeque<GenerationChunk>();
+            this.queuedregions = new ArrayDeque<QueuedRegion>();
+        }
+        
+        // returns true if complete
+        public boolean runStep()
+        {
+            boolean done = false;
+            if (pendinglighting.size() > 0)
+            {
+                // Run lighting step
+                // TODO print stuff
+                while (pendinglighting.size() > 0)
+                {
+                    GenerationChunk x = pendinglighting.pop();
+                    x.fixLighting();
+                    pendingcleanup.push(x);
+                }
+            }
+            else if (queuedregions.size() > 0)
+            {
+                QueuedRegion next = queuedregions.pop();
+                // Load these chunks as our step
+                GenerationChunk c;
+                while ((c = next.getChunk(this.world)) != null)
+                {
+                    c.load();
+                    if (this.fixlighting == GenerationLighting.NONE)
+                        pendingcleanup.push(c);
+                    else
+                        pendinglighting.push(c);
+                }
+            }
+            else
+                done = true;
+            
+            // Handle pending-cleanup chunks
+            Iterator<GenerationChunk> cleaner = pendingcleanup.iterator();
+            while (cleaner.hasNext())
+            {
+                GenerationChunk x = cleaner.next();
+                if (x.tryUnload()) cleaner.remove();
+            }
+            
+            if (pendingcleanup.size() == 0 && done)
+                return true;
+            return false;
+        }
+        
+        // Returns number of chunks queued
+        public int addCircularRegion(World world, int xCenter, int zCenter, int radius)
+        {
+            xCenter = _toChunk(xCenter);
+            zCenter = _toChunk(zCenter);
+            radius = _toChunk(radius);
+            return this._addRegion(xCenter - radius, zCenter - radius, xCenter + radius, zCenter + radius, xCenter, zCenter, radius);
+        }
+        // Returns number of chunks queued
+        public int addSquareRegion(World world, int xStart, int zStart, int xEnd, int zEnd)
+        {
+            return this._addRegion(_toChunk(xStart), _toChunk(zStart), _toChunk(xEnd), _toChunk(zEnd), 0, 0, 0);
+        }
+        
+        // Returns number of chunks queued
+        // values are in *chunk coordinates* (see _toChunk)
+        private int _addRegion(int xStart, int zStart, int xEnd, int zEnd, int xCenter, int zCenter, int radius)
+        {
+            if (xStart >= xEnd || zStart >= zEnd || radius < 0)
+                return 0;
+            
+            // Break into regions
+            int regionSize;
+            if (this.speed == GenerationSpeed.NORMAL) regionSize = 16;
+            else if (this.speed == GenerationSpeed.SLOW) regionSize = 13;
+            else if (this.speed == GenerationSpeed.VERYSLOW) regionSize = 10;
+            else regionSize = 24;
+            
+            // Regions need to overlap by 2 so block populators
+            // and lighting can run. (edge chunks wont work in either)
+            int overlap = 2;
+            
+            int zNext = zStart + overlap;
+            int xNext = xStart + overlap;
+            
+            while (zNext <= zEnd)
+            {
+                int x1 = xNext - overlap;
+                int x2 = Math.min(x1 + regionSize - 1, xEnd + overlap);
+                int z1 = zNext - overlap;
+                int z2 = Math.min(z1 + regionSize - 1, zEnd + overlap);
+                
+                queuedregions.add(new QueuedRegion(xStart, zStart, xEnd, zEnd, xCenter, zCenter, radius));
+                
+                xNext = x2 + 1;
+                
+                if (xNext > xEnd)
+                {
+                    xNext = xStart;
+                    zNext = z2 + 1;
+                }
+            }
+            return (xEnd - xStart + 1) * (zEnd - zStart + 1);
+        }
+        
+        private int _toChunk(int worldCoordinate)
+        {
+            // floor/ceiling depending on which side of the origin we're on
+            int ret = (int)((double)worldCoordinate / 16);
+            if (worldCoordinate >= 0)
+                return ret + 1;
+            else
+                return ret;
+        }
+        
+        private class QueuedRegion
+        {
+            private int xStart, zStart, xEnd, zEnd, xCenter, zCenter, radius, x, z;
+            QueuedRegion(int xStart, int zStart, int xEnd, int zEnd, int xCenter, int zCenter, int radius)
+            {
+                this.x = xStart;
+                this.z = zStart;
+                this.xCenter = xCenter;
+                this.zCenter = zCenter;
+                this.xStart = xStart;
+                this.zStart = zStart;
+                this.xEnd = xEnd;
+                this.zEnd = zEnd;
+                this.radius = radius;
+            }
+            
+            // For iterating over chunks
+            public void reset() { x = xStart; z = zStart; }
+            public GenerationChunk getChunk(World world)
+            {
+                if (x > xEnd && z > zEnd)
+                    return null;
+                
+                GenerationChunk ret = new GenerationChunk(this.x++, this.z, world);
+                if (x > xEnd)
+                {
+                    x = xStart;
+                    z++;
+                }
+                return ret;
+            }
+            
+            // Chunks this represents
+            public int getSize() { return (xEnd - xStart + 1) * (zEnd - zStart + 1); }
+        }
+        
+        private ArrayDeque<GenerationChunk> pendinglighting, pendingcleanup;
+        private ArrayDeque<QueuedRegion> queuedregions;
+        private World world;
+        private GenerationLighting fixlighting;
+        private GenerationSpeed speed;
+    }
     private class GenerationChunk
     {
         private int x, z;
@@ -61,7 +272,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         {
             // Don't run this step on chunks without all adjacent chunks loaded, or it will
             // actually corrupt the lighting
-            if (this.chuck != null
+            if (this.chunk != null
                 && this.world.isChunkLoaded(this.x - 1, this.z)
                 && this.world.isChunkLoaded(this.x, this.z - 1)
                 && this.world.isChunkLoaded(this.x + 1, this.z)
@@ -111,7 +322,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         }
         public void load()
         {
-            this.chunk = this.world.getChunk(this.x, this.z);
+            this.chunk = this.world.getChunkAt(this.x, this.z);
             if (!this.chunk.isLoaded())
                 this.chunk.load(true);
         }
