@@ -437,11 +437,6 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             replyMsg("Plugin unloaded, aborting generation.");
             this.endTask();
         }
-        // this can cause zombie chunks since we can no longer wait.
-        // But it's better than force unloading them and all the bugs
-        // that would cause (lighting errors - unloading chunks players
-        // are on/near... much worse than a minor transient memory leak)
-        this.freeLoadedChunks();
     }
 
     
@@ -595,19 +590,6 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         }
     }
 
-    private int freeLoadedChunks()
-    {
-        // requesting an unloaded chunk wont always cause it to unload,
-        // causing misc chunks to pile up, so we keep issueing unload requests
-        // until the chunk disappears.
-        for (int i = ourChunks.size() - 1; i >= 0; i--)
-        {
-            if (ourChunks.get(i).tryUnload())
-                ourChunks.remove(i);
-        }
-        return ourChunks.size();
-    }
-    
     public void cancelGeneration()
     {
         if (this.taskId != 0)
