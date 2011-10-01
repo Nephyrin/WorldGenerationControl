@@ -3,17 +3,27 @@ main: net.pointysoftware.worldgenerationcontrol.WorldGenerationControl
 version: 2.0
 author: john@pointysoftware.net
 
+permissions:
+   worldgenerationcontrol.generate:
+      description: |
+      Allows user to queue generations. Implicitly grants worldgenerationcontrol.statusupdates.
+      children:
+         worldgenerationcontrol.statusupdates: true
+   worldgenerationcontrol.statusupdates:
+      description: |
+         Allows user to see progress of generations when connected.
+
 commands:
    forcegenchunks:
       aliases: forcegen
       description: Force generate region of chunks.
       usage: |
-            /<command> WorldName xStart zStart xEnd zEnd [maxLoadedChunks]
+            Usage: /<command> WorldName xStart zStart xEnd zEnd [maxLoadedChunks]
    
    forcegencircle:
        description: Force generate a circular region of chunks
        usage: |
-            /<command> Radius [WorldName xCenter zCenter] [maxLoadedChunks]
+            Usage: /<command> Radius [WorldName xCenter zCenter] [maxLoadedChunks]
 
    cancelforcegenchunks:
       aliases: cancelforcegen
