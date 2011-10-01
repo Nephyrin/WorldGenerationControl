@@ -398,23 +398,12 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
     // A size of 12 would result in 16*16=256 blocks loaded per tick
     private static final int BLOCKSIZE = 16;
 
+    private GenerationRegion currentRegion;
+    private ArrayDeque<GenerationRegion> pendingRegions = new ArrayDeque<GenerationRegion>();
     private ArrayList<GenerationChunk> ourChunks = new ArrayList<GenerationChunk>();
     private int taskId = 0;
-    private World world;
-    private int xStart;
-    private int xEnd;
-    private int zStart;
-    private int zEnd;
-    private int xNext;
-    private int zNext;
-    private int radius;
-    private int xCenter;
-    private int zCenter;
     private int maxLoadedChunks;
-    // If the generation is done but we're waiting on chunks
-    private boolean waiting;
     private CommandSender commandSender;
-    private long lastLoadedComplaint;
     
     public void onEnable()
     {
@@ -443,7 +432,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
 
     public void onDisable()
     {
-        if (this.taskId != 0 && !this.waiting)
+        if (this.taskId != 0)
         {
             replyMsg("Plugin unloaded, aborting generation.");
             this.endTask();
@@ -478,7 +467,7 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
                 replyMsg("Requires op status.", sender);
                 return true;
             }
-            if (this.taskId != 0 && !this.waiting)
+            if (this.taskId != 0)
             {
                 replyMsg("Generation already in progress.", sender);
                 return true;
@@ -570,11 +559,16 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
                 return true;
             }
 
-            this.generateChunks(world, xStart, xEnd, zStart, zEnd, maxLoadedChunks, radius, xCenter, zCenter, sender);
+            GenerationRegion gen = new GenerationRegion(world, GenerationSpeed.NORMAL, GenerationLighting.NORMAL);
+            if (bCircular)
+                gen.addCircularRegion(world, xCenter * 16, zCenter * 16, radius * 16);
+            else
+                gen.addSquareRegion(world, xStart * 16, xEnd * 16, zStart * 16, zEnd * 16);
+            this.queueGeneration(gen);
         }
         else if (commandLabel.compareToIgnoreCase("cancelforcegenchunks") == 0 || commandLabel.compareToIgnoreCase("cancelforcegen") == 0)
         {
-            if (this.waiting || this.taskId == 0)
+            if (this.taskId == 0)
             {
                 replyMsg("There is no chunk generation in progress", sender);
                 return true;
@@ -589,38 +583,16 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         }
         return true;
     }
-
-    public boolean generateChunks(World world, int xStart, int xEnd, int zStart, int zEnd, int maxLoadedChunks, int radius, int xCenter, int zCenter, CommandSender commandSender)
+    
+    public void queueGeneration(GenerationRegion region)
     {
-        if (!this.waiting && this.taskId != 0) return false;
-
-        // The generation routine adds 2 to the edges of the generation cells
-        // so bump these borders in by two (if possible) to avoid generating
-        // more than requested chunks. It's still possible to generate extra
-        // chunks if the height or width of the requested block is < 5
-        if (xEnd - xStart > 2) xEnd -= 2;
-        if (xEnd - xStart > 2) xStart += 2;
-        if (zEnd - zStart > 2) zEnd -= 2;
-        if (zEnd - zStart > 2) zStart += 2;
-
-        this.maxLoadedChunks = maxLoadedChunks;
-        this.world = world;
-        this.xStart = xStart;
-        this.xNext = xStart;
-        this.zNext = zStart;
-        this.xEnd = xEnd;
-        this.zStart = zStart;
-        this.zEnd = zEnd;
-        this.xCenter = xCenter;
-        this.zCenter = zCenter;
-        this.radius = radius;
-        this.commandSender = commandSender;
-        this.waiting = false;
-        this.taskId = getServer().getScheduler().scheduleSyncRepeatingTask(this, this, 50, 50);
-        
-        int num = (xEnd - xStart + 1) * (zEnd - zStart + 1);
-        replyMsg((commandSender instanceof Player ? ("Player " + ChatColor.GOLD + ((Player)commandSender).getName() + ChatColor.WHITE) : "The console") + " started generation of " + num + " Chunks (" + (num * 16) + " blocks).");
-        return true;
+        if (this.currentRegion != null)
+            this.pendingRegions.push(region);
+        else
+        {
+            this.currentRegion = region;
+            this.taskId = getServer().getScheduler().scheduleSyncRepeatingTask(this, this, 60, 60);
+        }
     }
 
     private int freeLoadedChunks()
@@ -638,10 +610,9 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
     
     public void cancelGeneration()
     {
-        if (this.taskId != 0 && !this.waiting)
+        if (this.taskId != 0)
         {
-            this.zNext = this.zEnd + 1;
-            this.waiting = true;
+            this.pendingRegions.clear();
         }
     }
     
@@ -652,83 +623,17 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
             getServer().getScheduler().cancelTask(this.taskId);
         this.taskId = 0;
         this.commandSender = null;
-        this.waiting = false;
     }
 
     public void run()
     {
         if (this.taskId == 0) return; // Prevent inappropriate calls
-
-        int remainingChunks = this.freeLoadedChunks();
-
-        int loaded = world.getLoadedChunks().length;
-
-        if (this.zNext > this.zEnd)
+        if (this.currentRegion.runStep())
         {
-            if (!this.waiting)
-            {
-                replyMsg("Finished generating, waiting for " + remainingChunks + " chunks to finish unloading. (Currently " + loaded + " chunks loaded)");
-                this.waiting = true;
-            }
-            if (remainingChunks == 0)
-            {
-                replyMsg("All outstanding chunks cleaned up, have a nice day! (Currently " + loaded + " chunks loaded)");
+            if (this.pendingRegions.size() > 0)
+                this.currentRegion = this.pendingRegions.pop();
+            else
                 this.endTask();
-            }
-            return;
-        }
-
-        if (loaded > this.maxLoadedChunks)
-        {
-            long timems = System.currentTimeMillis();
-            if (timems > this.lastLoadedComplaint + 30000)
-            {
-                replyMsg("More than " + this.maxLoadedChunks + " chunks loaded (" + loaded + " loaded, max "+this.maxLoadedChunks+"), waiting for some to finish unloading.");
-                this.lastLoadedComplaint = timems;
-            }
-            return;
-        }
-
-        int x1 = this.xNext - 2;
-        int x2 = Math.min(x1 + this.BLOCKSIZE - 1, this.xEnd + 2);
-        int z1 = this.zNext - 2;
-        int z2 = Math.min(z1 + this.BLOCKSIZE - 1, this.zEnd + 2);
-
-        int totalWidth = this.xEnd - this.xStart + 1;
-        int remainingX = this.xEnd - Math.min(this.xEnd, x2);
-        int remainingZ = this.zEnd - Math.min(this.zEnd, z2);
-        int rowHeight = Math.min(this.zEnd, z2) - this.zNext + 1;
-        int totalHeight = this.zEnd - this.zStart + 1;
-        double pctX = (double)remainingX / totalWidth;
-        double pct = 1 - (((double)remainingZ + pctX * rowHeight) / totalHeight);
-        
-        replyMsg(ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.WHITE + " Generating " + ((x2 - x1 + 1) * (z2 - z1 + 1)) + " chunk region from ["+x1+","+z1+"] to ["+x2+","+z2+"], " + loaded + " currently loaded.");
-
-        for (int nx = x1; nx <= x2; nx++)
-        {
-            for (int nz = z1; nz <= z2; nz++)
-            {
-                if (!world.isChunkLoaded(nx, nz))
-                {
-                    // If we're doing a circular generation, this block might be skipped
-                    if ((radius > 0) && (radius < Math.sqrt((double)(Math.pow(Math.abs(nx - xCenter),2) + Math.pow(Math.abs(nz - zCenter),2)))))
-                            continue;
-                    // Keep tracks of chunks we caused to load so we can unload them
-                    GenerationChunk c = new GenerationChunk(nx, nz, world);
-                    c.load();
-                    ourChunks.add(c);
-                }
-            }
-        }
-
-        //loaded = world.getLoadedChunks().length;
-        //replyMsg("... now loaded: " + loaded);
-        this.xNext = x2 + 1;
-
-        if (this.xNext > this.xEnd)
-        {
-            this.xNext = this.xStart;
-            this.zNext = z2 + 1;
         }
     }
 }
