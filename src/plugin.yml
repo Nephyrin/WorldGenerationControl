@@ -1,6 +1,6 @@
 name: ForcegenChunks
-main: net.pointysoftware.forcegenchunks.ForcegenChunks
-version: 1.4
+main: net.pointysoftware.worldgenerationcontrol.WorldGenerationControl
+version: 2.0
 author: john@pointysoftware.net
 
 commands:

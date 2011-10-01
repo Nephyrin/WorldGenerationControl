@@ -1,7 +1,7 @@
 /*
    See README.markdown for more information
    
-   ForcegenChunks - Bukkit chunk preloader
+   World Generation Control - Bukkit chunk preloader
    Copyright (C) 2011 john@pointysoftware.net
 
    This program is free software; you can redistribute it and/or modify
@@ -19,7 +19,7 @@
    Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-package net.pointysoftware.forcegenchunks;
+package net.pointysoftware.worldgenerationcontrol;
 
 import java.util.Iterator;
 import java.util.ArrayList;
@@ -49,7 +49,7 @@ import org.bukkit.command.CommandSender;
 
 import org.bukkit.scheduler.BukkitScheduler;
 
-public class ForcegenChunks extends JavaPlugin implements Runnable
+public class WorldGenerationControl extends JavaPlugin implements Runnable
 {
     private final static String VERSION = "1.4";
     public enum GenerationSpeed
@@ -434,8 +434,8 @@ public class ForcegenChunks extends JavaPlugin implements Runnable
         boolean isPlayer = (sender != null && sender instanceof Player);
         
         if (isPlayer)
-            ((Player)sender).sendMessage(ChatColor.DARK_GRAY + "[" + ChatColor.GRAY + "ForcegenChunks" + ChatColor.DARK_GRAY + "]" + ChatColor.WHITE + " " + str);
-        if (!isPlayer || !senderOnly) System.out.println("[ForcegenChunks] " + ChatColor.stripColor(str));
+            ((Player)sender).sendMessage(ChatColor.DARK_GRAY + "[" + ChatColor.GRAY + "WorldGenerationControl" + ChatColor.DARK_GRAY + "]" + ChatColor.WHITE + " " + str);
+        if (!isPlayer || !senderOnly) System.out.println("[WorldGenerationControl] " + ChatColor.stripColor(str));
     }
 
     public void onDisable()
