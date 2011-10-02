@@ -401,10 +401,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 { throw new NiceArgsParseIntException(argName, this.cleanArgs.get(i)); }
         }
     }
-    
-    // Max size of each block chunk to load at a time
-    // A size of 12 would result in 16*16=256 blocks loaded per tick
-    private static final int BLOCKSIZE = 16;
 
     private GenerationRegion currentRegion;
     private ArrayDeque<GenerationRegion> pendingRegions = new ArrayDeque<GenerationRegion>();
