@@ -249,12 +249,13 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         
         private int _toChunk(int worldCoordinate)
         {
-            // floor/ceiling depending on which side of the origin we're on
-            int ret = (int)((double)worldCoordinate / 16);
-            if (worldCoordinate >= 0)
-                return ret + 1;
+            // -1 through -16 are chunk -1,
+            // 0 through 15 are chunk 0,
+            // 16 through 32 are chunk 1...
+            if (worldCoordinate < 0)
+                return (worldCoordinate + 1)/16 - 1
             else
-                return ret;
+                return worldCoordinate/16
         }
         
         private class QueuedRegion
