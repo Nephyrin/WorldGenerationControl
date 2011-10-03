@@ -240,7 +240,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 
                 if (xNext > xEnd)
                 {
-                    xNext = xStart;
+                    xNext = xStart + overlap;
                     zNext = z2 + 1;
                 }
             }
