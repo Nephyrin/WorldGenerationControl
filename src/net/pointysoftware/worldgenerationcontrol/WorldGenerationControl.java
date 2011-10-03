@@ -23,6 +23,7 @@ package net.pointysoftware.worldgenerationcontrol;
 
 import java.util.logging.Logger;
 import java.util.Iterator;
+import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.ArrayDeque;
 import java.util.regex.Pattern;
@@ -366,10 +367,16 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         public String getName() { return this.argName; }
         public String getBadValue() { return this.badValue; }
     }
-    private class NiceArgsParseException extends Throwable {}
+    private class NiceArgsParseException extends Throwable
+    {
+        private String error;
+        NiceArgsParseException(String error) { this.error = error; }
+        public String getError() { return this.error; }
+    }
     private class NiceArgs
     {
         private ArrayList<String> cleanArgs;
+        private HashMap<String, String> switches;
         private int[] parsedInts;
         NiceArgs(String[] args) throws NiceArgsParseException
         {
@@ -378,6 +385,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 allargs += (allargs.length() > 0 ? " " : "") + args[x];
 
             cleanArgs = new ArrayList<String>();
+            switches = new HashMap<String, String>();
 
             // Matches any list of items delimited by spaces. An item can have quotes around it to escape spaces
             // inside said quotes. Also honors escape sequences
@@ -387,11 +395,24 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             {
                 if (m.lookingAt())
                 {
-                    cleanArgs.add((m.group(1) == null ? m.group(2) : m.group(1)).replaceAll("\\\\(.|$)", "$1"));
+                    String rawarg = m.group(1) == null ? m.group(2) : m.group(1);
+                    String arg = rawarg.replaceAll("\\\\(.|$)", "$1");
+                    if (m.group(2) != null && rawarg.charAt(0) == '/')
+                    {
+                        // Handle switches. (Matches in group 1 are quoted arugments. They cannot be switches.)
+                        String st[] = arg.substring(1).split("/:/");
+                        if (st.length > 2)
+                            throw new NiceArgsParseException("Invalid option: " + arg.substring(1));
+                        this.switches.put(st[0], st.length == 2 ? st[1] : "true");
+                    }
+                    else
+                    {
+                        cleanArgs.add(arg);
+                    }
                     m.region(m.end(), m.regionEnd());
                 }
                 else
-                    throw new NiceArgsParseException();
+                    throw new NiceArgsParseException("Error - Mismatched/errant quotes in arguments. You can escape quotes in world names with backslashes, e.g. \\\"");
             }
         }
         public int length() { return this.cleanArgs.size(); }
@@ -476,7 +497,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         }
         catch (NiceArgsParseException e)
         {
-            statusMsg("Error - Mismatched/errant quotes in arguments. You can escape quotes in world names with backslashes, e.g. \\\"", sender);
+            statusMsg(e.getError(), sender);
             return true;
         }
         
