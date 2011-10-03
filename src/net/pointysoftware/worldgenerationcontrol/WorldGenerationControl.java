@@ -428,7 +428,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                         String st[] = arg.substring(1).split("/:/");
                         if (st.length > 2)
                             throw new NiceArgsParseException("Invalid option: " + arg.substring(1));
-                        this.switches.put(st[0], st.length == 2 ? st[1] : "true");
+                        this.switches.put(st[0].toLowerCase(), st.length == 2 ? st[1] : "true");
                     }
                     else
                     {
@@ -442,7 +442,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         }
         public int length() { return this.cleanArgs.size(); }
         public String get(int x) { return this.cleanArgs.get(x); }
-        public String getSwitch(String key) { return switches.get(key); }
+        public String getSwitch(String key) { return switches.get(key.toLowerCase()); }
         public int getInt(int i, String argName) throws NiceArgsParseIntException
         {
             try
