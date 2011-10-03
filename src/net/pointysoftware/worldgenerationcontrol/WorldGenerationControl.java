@@ -205,11 +205,11 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             while (zNext <= zEnd)
             {
                 int x1 = xNext - overlap;
-                int x2 = Math.min(x1 + regionSize - 1, xEnd + overlap);
+                int x2 = Math.min(x1 + regionSize - 1, xEnd);
                 int z1 = zNext - overlap;
-                int z2 = Math.min(z1 + regionSize - 1, zEnd + overlap);
+                int z2 = Math.min(z1 + regionSize - 1, zEnd);
                 
-                queuedregions.add(new QueuedRegion(xStart, zStart, xEnd, zEnd, xCenter, zCenter, radius));
+                queuedregions.add(new QueuedRegion(x1, z1, x2, z2, xCenter, zCenter, radius));
                 this.totalregions++;
                 
                 xNext = x2 + 1;
