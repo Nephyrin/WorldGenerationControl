@@ -410,7 +410,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     private ArrayDeque<GenerationRegion> pendingRegions = new ArrayDeque<GenerationRegion>();
     private ArrayList<GenerationChunk> ourChunks = new ArrayList<GenerationChunk>();
     private int taskId = 0;
-    private int maxLoadedChunks;
     
     public void onEnable()
     {
@@ -494,14 +493,13 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 statusMsg("Generation already in progress.", sender);
                 return true;
             }
-            if     ((bCircular && (args.length() != 1 && args.length() != 2 && args.length() != 4 && args.length() != 5))
-                || (!bCircular && (args.length() != 5 && args.length() != 6)))
+            if     ((bCircular && (args.length() != 1 && args.length() != 4))
+                || !bCircular && (args.length() != 5))
             {
                 return false;
             }
             
             World world = null;
-            int maxLoadedChunks = -1;
             int xCenter = 0, zCenter = 0, xStart, zStart, xEnd, zEnd, radius = 0;
             try
             {
@@ -543,8 +541,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     xEnd = xCenter + radius;
                     zStart = zCenter - radius;
                     zEnd = zCenter + radius;
-                    if (args.length() == 2) maxLoadedChunks = args.getInt(1, "maxLoadedChunks");
-                    else if (args.length() == 5) maxLoadedChunks = args.getInt(4, "maxLoadedChunks");
                 }
                 else
                 {
@@ -558,20 +554,11 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     zStart = args.getInt(2, "zStart");
                     xEnd   = args.getInt(3, "xEnd");
                     zEnd   = args.getInt(4, "zEnd");
-                    if (args.length() == 6) maxLoadedChunks = args.getInt(5, "maxLoadedChunks");
                 }
             }
             catch (NiceArgsParseIntException e)
             {
                 statusMsg("Error: " + e.getName() + " argument must be a number, not \"" + e.getBadValue() + "\"", sender);
-                return true;
-            }
-            
-            int loaded = world.getLoadedChunks().length;
-            if (maxLoadedChunks < 0) maxLoadedChunks = loaded + 800;
-            else if (maxLoadedChunks < loaded + 200)
-            {
-                statusMsg("maxLoadedChunks too low, there are already " + loaded + " chunks loaded - need a value of at least " + (loaded + 200), sender);
                 return true;
             }
             
