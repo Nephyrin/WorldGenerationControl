@@ -119,6 +119,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         {
             boolean done = false;
             String state;
+            int stime = debug ? System.nanoTime() : 0;
             if (pendinglighting.size() > 0)
             {
                 int chunksPerTick;
@@ -133,7 +134,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 // Run lighting step
                 // TODO print stuff
                 state = "Generating light";
-                long lighttime = debug ? System.nanoTime() : 0;
                 while ((speed == GenerationSpeed.ALLATONCE || speed == GenerationSpeed.VERYFAST || chunksPerTick > 0) && pendinglighting.size() > 0)
                 {
                     GenerationChunk x = pendinglighting.pop();
