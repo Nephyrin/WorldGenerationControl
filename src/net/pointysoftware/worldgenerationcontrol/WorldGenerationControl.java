@@ -112,6 +112,11 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             this.pendinglighting = new ArrayDeque<GenerationChunk>();
             this.pendingcleanup = new ArrayDeque<GenerationChunk>();
             this.queuedregions = new ArrayDeque<QueuedRegion>();
+
+            if (this.speed == GenerationSpeed.NORMAL) regionsize = 16;
+            else if (this.speed == GenerationSpeed.SLOW) regionsize = 13;
+            else if (this.speed == GenerationSpeed.VERYSLOW) regionsize = 10;
+            else regionsize = 24;
         }
         
         // returns true if complete
@@ -213,11 +218,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 return 0;
             
             // Break into regions
-            int regionSize;
-            if (this.speed == GenerationSpeed.NORMAL) regionSize = 16;
-            else if (this.speed == GenerationSpeed.SLOW) regionSize = 13;
-            else if (this.speed == GenerationSpeed.VERYSLOW) regionSize = 10;
-            else regionSize = 24;
             
             // Regions need to overlap by 2 so block populators
             // and lighting can run. (edge chunks wont work in either)
@@ -229,9 +229,9 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             while (zNext <= zEnd)
             {
                 int x1 = xNext - overlap;
-                int x2 = Math.min(x1 + regionSize - 1, xEnd);
+                int x2 = Math.min(x1 + regionsize - 1, xEnd);
                 int z1 = zNext - overlap;
-                int z2 = Math.min(z1 + regionSize - 1, zEnd);
+                int z2 = Math.min(z1 + regionsize - 1, zEnd);
                 
                 queuedregions.add(new QueuedRegion(x1, z1, x2, z2, xCenter, zCenter, radius));
                 this.totalregions++;
@@ -308,6 +308,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         private GenerationLighting fixlighting;
         private GenerationSpeed speed;
         private int totalregions;
+        private int regionsize;
         private boolean debug;
     }
     private class GenerationChunk
