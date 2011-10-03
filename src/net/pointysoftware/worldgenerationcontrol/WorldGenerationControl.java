@@ -102,6 +102,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     {
         GenerationRegion(World world, GenerationSpeed speed, GenerationLighting lighting)
         {
+            this.totalregions = 0;
             this.world = world;
             this.speed = speed;
             this.fixlighting = lighting;
@@ -114,10 +115,12 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         public boolean runStep()
         {
             boolean done = false;
+            String state;
             if (pendinglighting.size() > 0)
             {
                 // Run lighting step
                 // TODO print stuff
+                state = "Generating light for region";
                 while (pendinglighting.size() > 0)
                 {
                     GenerationChunk x = pendinglighting.pop();
@@ -127,6 +130,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             else if (queuedregions.size() > 0)
             {
+                state = "Loading/generating region";
                 QueuedRegion next = queuedregions.pop();
                 // Load these chunks as our step
                 GenerationChunk c;
@@ -140,7 +144,14 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 }
             }
             else
+            {
+                state = "Waiting for server to finish saving chunks.";
                 done = true;
+            }
+            
+            // Status message
+            double pct = ((pendinglighting.size() > 0 ? 0.5 : 0.) + (double)queuedregions.size()) / totalregions;
+            statusMsg(ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.WHITE + " " + state + ", " + queuedregions.size() + " regions remaining.");
             
             // Handle pending-cleanup chunks
             Iterator<GenerationChunk> cleaner = pendingcleanup.iterator();
@@ -198,6 +209,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 int z2 = Math.min(z1 + regionSize - 1, zEnd + overlap);
                 
                 queuedregions.add(new QueuedRegion(xStart, zStart, xEnd, zEnd, xCenter, zCenter, radius));
+                this.totalregions++;
                 
                 xNext = x2 + 1;
                 
@@ -269,6 +281,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         private World world;
         private GenerationLighting fixlighting;
         private GenerationSpeed speed;
+        private int totalregions;
     }
     private class GenerationChunk
     {
