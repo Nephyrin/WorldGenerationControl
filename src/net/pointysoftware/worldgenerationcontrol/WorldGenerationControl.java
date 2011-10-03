@@ -522,7 +522,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             
             World world = null;
-            int xCenter = 0, zCenter = 0, xStart, zStart, xEnd, zEnd, radius = 0;
+            int xCenter = 0, zCenter = 0, xStart = 0, zStart = 0, xEnd = 0, zEnd = 0, radius = 0;
             try
             {
                 if (bCircular)
@@ -559,10 +559,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                         xCenter = args.getInt(2, "xCenter");
                         zCenter = args.getInt(3, "zCenter");
                     }
-                    xStart = xCenter - radius;
-                    xEnd = xCenter + radius;
-                    zStart = zCenter - radius;
-                    zEnd = zCenter + radius;
                 }
                 else
                 {
@@ -584,18 +580,31 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 return true;
             }
             
-            if (xEnd - xStart < 1 || zEnd - zStart < 1)
+            if (bCircular && radius < 1)
+            {
+                statusMsg("Circle radius must be > 0.", sender);
+                return true;
+            }
+            else if (!bCircular && (xEnd - xStart < 1 || zEnd - zStart < 1))
             {
                 statusMsg("xEnd and zEnd must be greater than xStart and zStart respectively.", sender);
                 return true;
             }
 
+            int numChunks;
             GenerationRegion gen = new GenerationRegion(world, GenerationSpeed.NORMAL, GenerationLighting.NORMAL);
             if (bCircular)
-                gen.addCircularRegion(world, xCenter * 16, zCenter * 16, radius * 16);
+                numChunks = gen.addCircularRegion(world, xCenter, zCenter, radius);
             else
-                gen.addSquareRegion(world, xStart * 16, xEnd * 16, zStart * 16, zEnd * 16);
+                numChunks = gen.addSquareRegion(world, xStart, xEnd, zStart, zEnd);
+            if (numChunks < 1)
+            {
+                // This shouldn't really be possible
+                statusMsg("Specified region contains no loadable chunks (did you mix up positive/negatives?).", sender);
+                return true;
+            }
             this.queueGeneration(gen);
+            statusMsg((sender instanceof Player ? ("Player " + ChatColor.GOLD + ((Player)sender).getName() + ChatColor.WHITE) : "The console") + " started generation of " + numChunks + " chunk region (" + (numChunks * 16) + " blocks).");
         }
         else if (commandLabel.compareToIgnoreCase("cancelgeneration") == 0 || commandLabel.compareToIgnoreCase("cancelgen") == 0)
         {
