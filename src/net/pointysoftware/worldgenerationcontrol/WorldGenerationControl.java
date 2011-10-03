@@ -623,7 +623,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             if (bCircular)
                 numChunks = gen.addCircularRegion(world, xCenter, zCenter, radius);
             else
-                numChunks = gen.addSquareRegion(world, xStart, xEnd, zStart, zEnd);
+                numChunks = gen.addSquareRegion(world, xStart, zStart, xEnd, zEnd);
             if (numChunks < 1)
             {
                 // This shouldn't really be possible
