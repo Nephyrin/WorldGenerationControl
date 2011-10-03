@@ -14,17 +14,18 @@ permissions:
          Allows user to see progress of generations when connected.
 
 commands:
-   forcegenchunks:
-      aliases: forcegen
-      description: Force generate region of chunks.
+   generateregion:
+      aliases: genregion
+      description: Queue the generation of a square region of chunks.
       usage: |
-            Usage: /<command> WorldName xStart zStart xEnd zEnd [maxLoadedChunks]
+            Usage: /<command> WorldName xStart zStart xEnd zEnd
    
-   forcegencircle:
-       description: Force generate a circular region of chunks
+   generatecircularregion:
+       aliases: gencircle
+       description: Queue the generation of a circular region of chunks.
        usage: |
-            Usage: /<command> Radius [WorldName xCenter zCenter] [maxLoadedChunks]
+            Usage: /<command> Radius [WorldName xCenter zCenter]
 
-   cancelforcegenchunks:
-      aliases: cancelforcegen
-      description: Cancel pending forced chunk generation.
+   cancelgeneration:
+      aliases: cancelgen
+      description: Cancel all pending chunk generation.

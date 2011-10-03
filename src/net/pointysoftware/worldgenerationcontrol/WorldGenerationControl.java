@@ -481,8 +481,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             return true;
         }
         
-        boolean bCircular = commandLabel.compareToIgnoreCase("forcegencircle") == 0;
-        if (bCircular || commandLabel.compareToIgnoreCase("forcegenchunks") == 0 || commandLabel.compareToIgnoreCase("forcegen") == 0)
+        boolean bCircular = commandLabel.compareToIgnoreCase("generatecircularregion") == 0 || commandLabel.compareToIgnoreCase("gencircle") == 0;
+        if (bCircular || commandLabel.compareToIgnoreCase("generateregion") == 0 || commandLabel.compareToIgnoreCase("genregion") == 0)
         {
             if (!sender.isOp())
             {
@@ -588,7 +588,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 gen.addSquareRegion(world, xStart * 16, xEnd * 16, zStart * 16, zEnd * 16);
             this.queueGeneration(gen);
         }
-        else if (commandLabel.compareToIgnoreCase("cancelforcegenchunks") == 0 || commandLabel.compareToIgnoreCase("cancelforcegen") == 0)
+        else if (commandLabel.compareToIgnoreCase("cancelgeneration") == 0 || commandLabel.compareToIgnoreCase("cancelgen") == 0)
         {
             if (this.taskId == 0)
             {
