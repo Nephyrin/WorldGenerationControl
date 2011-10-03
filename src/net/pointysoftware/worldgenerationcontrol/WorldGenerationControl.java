@@ -119,7 +119,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         {
             boolean done = false;
             String state;
-            int stime = debug ? System.nanoTime() : 0;
+            long stime = debug ? System.nanoTime() : 0;
             if (pendinglighting.size() > 0)
             {
                 int chunksPerTick;
