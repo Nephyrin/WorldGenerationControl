@@ -620,7 +620,18 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
 
             int numChunks;
-            GenerationRegion gen = new GenerationRegion(world, GenerationSpeed.NORMAL, GenerationLighting.NORMAL, args.getSwitch("debug") != null);
+            GenerationSpeed speed = GenerationSpeed.NORMAL;
+            if (args.getSwitch("allatonce") != null)
+                speed = GenerationSpeed.ALLATONCE;
+            else if (args.getSwitch("veryfast") != null)
+                speed = GenerationSpeed.VERYFAST;
+            else if (args.getSwitch("fast") != null)
+                speed = GenerationSpeed.FAST;
+            else if (args.getSwitch("slow") != null)
+                speed = GenerationSpeed.SLOW;
+            else if (args.getSwitch("veryslow") != null)
+                speed = GenerationSpeed.VERYSLOW;
+            GenerationRegion gen = new GenerationRegion(world, speed, GenerationLighting.NORMAL, args.getSwitch("debug") != null);
             if (bCircular)
                 numChunks = gen.addCircularRegion(world, xCenter, zCenter, radius);
             else
