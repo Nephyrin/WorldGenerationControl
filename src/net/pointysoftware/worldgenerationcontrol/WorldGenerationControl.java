@@ -411,21 +411,21 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     
     public void onEnable()
     {
-        replyMsg("v"+VERSION+" Loaded");
+        statusMsg("v"+VERSION+" Loaded");
     }
     
     // Send the command initiator and the console
     // a message, but don't send duplicates if the
     // console is the command initator.
-    private void replyMsg(String str)
+    private void statusMsg(String str)
     {
-        this.replyMsg(str, this.commandSender, false);
+        this.statusMsg(str, this.commandSender, false);
     }
-    private void replyMsg(String str, CommandSender sender)
+    private void statusMsg(String str, CommandSender sender)
     {
-        this.replyMsg(str, sender, true);
+        this.statusMsg(str, sender, true);
     }
-    private void replyMsg(String str, CommandSender sender, boolean senderOnly)
+    private void statusMsg(String str, CommandSender sender, boolean senderOnly)
     {
         boolean isPlayer = (sender != null && sender instanceof Player);
         
@@ -438,7 +438,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     {
         if (this.taskId != 0)
         {
-            replyMsg("Plugin unloaded, aborting generation.");
+            statusMsg("Plugin unloaded, aborting generation.");
             this.endTask();
         }
     }
@@ -454,7 +454,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         }
         catch (NiceArgsParseException e)
         {
-            replyMsg("Error - Mismatched/errant quotes in arguments. You can escape quotes in world names with backslashes, e.g. \\\"", sender);
+            statusMsg("Error - Mismatched/errant quotes in arguments. You can escape quotes in world names with backslashes, e.g. \\\"", sender);
             return true;
         }
         
@@ -463,12 +463,12 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         {
             if (!sender.isOp())
             {
-                replyMsg("Requires op status.", sender);
+                statusMsg("Requires op status.", sender);
                 return true;
             }
             if (this.taskId != 0)
             {
-                replyMsg("Generation already in progress.", sender);
+                statusMsg("Generation already in progress.", sender);
                 return true;
             }
             if     ((bCircular && (args.length() != 1 && args.length() != 2 && args.length() != 4 && args.length() != 5))
@@ -488,7 +488,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
 
                     if (radius < 1)
                     {
-                        replyMsg("Radius must be > 1", sender);
+                        statusMsg("Radius must be > 1", sender);
                         return true;
                     }
                     
@@ -504,13 +504,13 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     {
                         if (args.length() < 4)
                         {
-                            replyMsg("You're not a player, so you need to specify a world name and location.", sender);
+                            statusMsg("You're not a player, so you need to specify a world name and location.", sender);
                             return true;
                         }
                         world = getServer().getWorld(args.get(1));
                         if (world == null)
                         {
-                            replyMsg("World \"" + ChatColor.GOLD + args.get(1) + ChatColor.WHITE + "\" does not exist.", sender);
+                            statusMsg("World \"" + ChatColor.GOLD + args.get(1) + ChatColor.WHITE + "\" does not exist.", sender);
                             return true;
                         }
                         xCenter = args.getInt(2, "xCenter");
@@ -528,7 +528,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     world = getServer().getWorld(args.get(0));
                     if (world == null)
                     {
-                        replyMsg("World \"" + ChatColor.GOLD + args.get(0) + ChatColor.WHITE + "\" does not exist.", sender);
+                        statusMsg("World \"" + ChatColor.GOLD + args.get(0) + ChatColor.WHITE + "\" does not exist.", sender);
                         return true;
                     }
                     xStart = args.getInt(1, "xStart");
@@ -540,7 +540,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             catch (NiceArgsParseIntException e)
             {
-                replyMsg("Error: " + e.getName() + " argument must be a number, not \"" + e.getBadValue() + "\"", sender);
+                statusMsg("Error: " + e.getName() + " argument must be a number, not \"" + e.getBadValue() + "\"", sender);
                 return true;
             }
             
@@ -548,13 +548,13 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             if (maxLoadedChunks < 0) maxLoadedChunks = loaded + 800;
             else if (maxLoadedChunks < loaded + 200)
             {
-                replyMsg("maxLoadedChunks too low, there are already " + loaded + " chunks loaded - need a value of at least " + (loaded + 200), sender);
+                statusMsg("maxLoadedChunks too low, there are already " + loaded + " chunks loaded - need a value of at least " + (loaded + 200), sender);
                 return true;
             }
             
             if (xEnd - xStart < 1 || zEnd - zStart < 1)
             {
-                replyMsg("xEnd and zEnd must be greater than xStart and zStart respectively.", sender);
+                statusMsg("xEnd and zEnd must be greater than xStart and zStart respectively.", sender);
                 return true;
             }
 
@@ -569,14 +569,14 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         {
             if (this.taskId == 0)
             {
-                replyMsg("There is no chunk generation in progress", sender);
+                statusMsg("There is no chunk generation in progress", sender);
                 return true;
             }
             else
             {
                 if (sender instanceof Player && this.commandSender != sender)
-                    replyMsg("Generation canceled", sender);
-                replyMsg("Generation canceled by " + (sender instanceof Player ? ("player " + ChatColor.GOLD + ((Player)sender).getName() + ChatColor.WHITE) : "the console") + ", waiting for remaining chunks to unload.");
+                    statusMsg("Generation canceled", sender);
+                statusMsg("Generation canceled by " + (sender instanceof Player ? ("player " + ChatColor.GOLD + ((Player)sender).getName() + ChatColor.WHITE) : "the console") + ", waiting for remaining chunks to unload.");
                 this.cancelGeneration();
             }
         }
