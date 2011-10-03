@@ -120,7 +120,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             {
                 // Run lighting step
                 // TODO print stuff
-                state = "Generating light for region";
+                state = "Generating light";
                 while (pendinglighting.size() > 0)
                 {
                     GenerationChunk x = pendinglighting.pop();
@@ -130,7 +130,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             else if (queuedregions.size() > 0)
             {
-                state = "Loading/generating region";
+                state = "Loading";
                 QueuedRegion next = queuedregions.pop();
                 // Load these chunks as our step
                 GenerationChunk c;
@@ -150,8 +150,9 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             
             // Status message
-            double pct = ((pendinglighting.size() > 0 ? 0.5 : 0.) + (double)queuedregions.size()) / totalregions;
-            statusMsg(ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.WHITE + " " + state + ", " + queuedregions.size() + " regions remaining.");
+            double pct = 1 - ((pendinglighting.size() > 0 ? 0.5 : 0.) + (double)queuedregions.size()) / totalregions;
+            int region = totalregions - queuedregions.size();
+            statusMsg(ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + " Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + ChatColor.GRAY + " :: " + state);
             
             // Handle pending-cleanup chunks
             Iterator<GenerationChunk> cleaner = pendingcleanup.iterator();
@@ -255,7 +256,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 GenerationChunk ret = null;
                 while (ret == null)
                 {
-                    if (x > xEnd && z > zEnd)
+                    if (z > zEnd)
                         return null;
                     
                     // Skip chunks outside circle radius
