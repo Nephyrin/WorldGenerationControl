@@ -417,6 +417,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         }
         public int length() { return this.cleanArgs.size(); }
         public String get(int x) { return this.cleanArgs.get(x); }
+        public String getSwitch(String key) { return switches.get(key); }
         public int getInt(int i, String argName) throws NiceArgsParseIntException
         {
             try
