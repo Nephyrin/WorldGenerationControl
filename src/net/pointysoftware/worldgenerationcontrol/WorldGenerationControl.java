@@ -162,7 +162,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             else
             {
-                state = "Waiting for server to finish saving chunks.";
+                state = "Unloading and saving chunks";
                 done = true;
             }
             
@@ -172,17 +172,20 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             statusMsg(ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + " Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + ChatColor.GRAY + " :: " + state);
             
             // Handle pending-cleanup chunks
-            Iterator<GenerationChunk> cleaner = pendingcleanup.iterator();
-            while (cleaner.hasNext())
+            if (done)
             {
-                cleaner.next().unload();
-                cleaner.remove();
+                Iterator<GenerationChunk> cleaner = pendingcleanup.iterator();
+                while (cleaner.hasNext())
+                {
+                    cleaner.next().unload();
+                    cleaner.remove();
+                }
             }
             
             if (debug)
                 statusMsg("\tDebug: This step took " + String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms");
             
-            if (pendingcleanup.size() == 0 && done)
+            if (done)
                 return true;
             if (speed == GenerationSpeed.ALLATONCE)
                 return this.runStep();
