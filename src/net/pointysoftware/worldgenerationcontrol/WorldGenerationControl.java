@@ -208,7 +208,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         // values are in *chunk coordinates* (see _toChunk)
         private int _addRegion(int xStart, int zStart, int xEnd, int zEnd, int xCenter, int zCenter, int radius)
         {
-            if (xStart >= xEnd || zStart >= zEnd || radius < 0)
+            statusMsg("\tDebug: In chunk values, xStart: " + xStart + ", zStart: " + zStart + " xEnd: " + xEnd + ", zEnd: " + zEnd + ", xCenter: " + xCenter + ", zCenter: " + zCenter + ", radius: " + radius);
+            if (xStart > xEnd || zStart > zEnd || radius < 0)
                 return 0;
             
             // Break into regions
