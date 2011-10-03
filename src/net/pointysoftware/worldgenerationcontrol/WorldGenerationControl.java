@@ -118,14 +118,24 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             String state;
             if (pendinglighting.size() > 0)
             {
+                int chunksPerTick;
+                if (speed == GenerationSpeed.FAST)
+                    chunksPerTick = 20;
+                else if (speed == GenerationSpeed.SLOW)
+                    chunksPerTick = 5;
+                else if (speed == GenerationSpeed.VERYSLOW)
+                    chunksPerTick = 2;
+                else
+                    chunksPerTick = 10;
                 // Run lighting step
                 // TODO print stuff
                 state = "Generating light";
-                while (pendinglighting.size() > 0)
+                while ((speed == GenerationSpeed.ALLATONCE || speed == GenerationSpeed.VERYFAST || chunksPerTick > 0) && pendinglighting.size() > 0)
                 {
                     GenerationChunk x = pendinglighting.pop();
                     x.fixLighting();
                     pendingcleanup.push(x);
+                    chunksPerTick--;
                 }
             }
             else if (queuedregions.size() > 0)
@@ -164,7 +174,10 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             
             if (pendingcleanup.size() == 0 && done)
                 return true;
-            return false;
+            if (speed == GenerationSpeed.ALLATONCE)
+                return this.runStep();
+            else
+                return false;
         }
         
         // Returns number of chunks queued
