@@ -174,8 +174,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             Iterator<GenerationChunk> cleaner = pendingcleanup.iterator();
             while (cleaner.hasNext())
             {
-                GenerationChunk x = cleaner.next();
-                if (x.tryUnload()) cleaner.remove();
+                cleaner.next().unload();
+                cleaner.remove();
             }
             
             if (pendingcleanup.size() == 0 && done)
@@ -369,20 +369,10 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             if (!this.chunk.isLoaded())
                 this.chunk.load(true);
         }
-        public boolean tryUnload()
+        public void unload()
         {
             if (this.world.isChunkLoaded(this.x, this.z))
-            {
-                // If this returns false, the chunk is loaded
-                // due to a nearby player, which means the world
-                // is managing it, which means we needn't worry
-                // about it.
-                return !this.world.unloadChunkRequest(x, z, true);
-            }
-            else
-            {
-                return true;
-            }
+                this.world.unloadChunk(x, z, true);
         }
     }
     
