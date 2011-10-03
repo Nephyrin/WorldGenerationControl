@@ -253,9 +253,9 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             // 0 through 15 are chunk 0,
             // 16 through 32 are chunk 1...
             if (worldCoordinate < 0)
-                return (worldCoordinate + 1)/16 - 1
+                return (worldCoordinate + 1)/16 - 1;
             else
-                return worldCoordinate/16
+                return worldCoordinate/16;
         }
         
         private class QueuedRegion
