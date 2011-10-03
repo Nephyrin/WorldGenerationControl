@@ -119,6 +119,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         {
             boolean done = false;
             String state;
+            long stime = debug ? System.nanoTime() : 0;
             if (pendinglighting.size() > 0)
             {
                 int chunksPerTick;
@@ -133,7 +134,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 // Run lighting step
                 // TODO print stuff
                 state = "Generating light";
-                long stime = debug ? System.nanoTime() : 0;
+                long lighttime = debug ? System.nanoTime() : 0;
                 while ((speed == GenerationSpeed.ALLATONCE || speed == GenerationSpeed.VERYFAST || chunksPerTick > 0) && pendinglighting.size() > 0)
                 {
                     GenerationChunk x = pendinglighting.pop();
@@ -142,7 +143,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     pendingcleanup.push(x);
                 }
                 if (debug)
-                    statusMsg("\tDebug: Lighting took " + String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms");
+                    statusMsg("\tDebug: Lighting took " + String.format("%.2f", (double)(System.nanoTime() - lighttime) / 1000000) + "ms");
             }
             else if (queuedregions.size() > 0)
             {
@@ -177,6 +178,9 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 cleaner.next().unload();
                 cleaner.remove();
             }
+            
+            if (debug)
+                statusMsg("\tDebug: This step took " + String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms");
             
             if (pendingcleanup.size() == 0 && done)
                 return true;
