@@ -113,10 +113,10 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             this.pendingcleanup = new ArrayDeque<GenerationChunk>();
             this.queuedregions = new ArrayDeque<QueuedRegion>();
 
-            if (this.speed == GenerationSpeed.NORMAL) regionsize = 16;
-            else if (this.speed == GenerationSpeed.SLOW) regionsize = 13;
-            else if (this.speed == GenerationSpeed.VERYSLOW) regionsize = 10;
-            else regionsize = 24;
+            if (this.speed == GenerationSpeed.NORMAL) regionsize = 12;
+            else if (this.speed == GenerationSpeed.SLOW) regionsize = 8;
+            else if (this.speed == GenerationSpeed.VERYSLOW) regionsize = 6;
+            else regionsize = 20;
         }
         
         // returns true if complete
