@@ -143,8 +143,10 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             
             // Status message
-            double pct = 1 - ((pendinglighting.size() > 0 ? 0.5 : 0.) + (double)queuedregions.size()) / totalregions;
-            int region = totalregions - queuedregions.size() + (step == 1) ? 1 : 0;
+            double lightingpct = (double)pendinglighting.size() / (this.regionsize * this.regionsize);
+            // Assumes lighting is 92% of each chunk's processing, a rough estimate based on timing a generation on my system
+            double pct = 1 - ((double)queuedregions.size() + 0.92 * lightingpct) / totalregions;
+            int region = totalregions - queuedregions.size() + (step == 1 ? 1 : 0);
             statusMsg(ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + " Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + ChatColor.GRAY + " :: " + state);
             
             if (pendinglighting.size() > 0)
