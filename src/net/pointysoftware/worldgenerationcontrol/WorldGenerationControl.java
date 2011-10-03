@@ -327,7 +327,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     // TODO -
                     // I *think* this should be safe, but I need to do testing on various tile
                     // entities placed at max height to ensure it doesn't damage them.
-                    touchedblocks.add(bl.getState());
+                    BlockState s = bl.getState();
                     // The way lighting works branches based on how far the skylight reaches down.
                     // Thus by toggling the top block between solid and not, we force a lighting update
                     // on this column of blocks.
@@ -335,11 +335,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                         bl.setType(Material.STONE);
                     else
                         bl.setType(Material.AIR);
-                }
-                // Tests show it's faster to set them all stone then back afterwards
-                // than it is to toggle each one in order.
-                for (BlockState s:touchedblocks)
                     s.update(true);
+                }
                 
                 bobthechicken.remove();
                 return true;
