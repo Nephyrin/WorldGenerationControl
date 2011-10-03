@@ -21,6 +21,7 @@
 
 package net.pointysoftware.worldgenerationcontrol;
 
+import java.util.logging.Logger;
 import java.util.Iterator;
 import java.util.ArrayList;
 import java.util.ArrayDeque;
@@ -31,6 +32,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
@@ -45,6 +47,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.ChatColor;
 
 import org.bukkit.command.Command;
+import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.command.CommandSender;
 
 import org.bukkit.scheduler.BukkitScheduler;
@@ -402,36 +405,56 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         }
     }
 
+    private Logger logger = Bukkit.getLogger();
     private GenerationRegion currentRegion;
     private ArrayDeque<GenerationRegion> pendingRegions = new ArrayDeque<GenerationRegion>();
     private ArrayList<GenerationChunk> ourChunks = new ArrayList<GenerationChunk>();
     private int taskId = 0;
     private int maxLoadedChunks;
-    private CommandSender commandSender;
     
     public void onEnable()
     {
         statusMsg("v"+VERSION+" Loaded");
     }
     
-    // Send the command initiator and the console
-    // a message, but don't send duplicates if the
-    // console is the command initator.
+    // Send a status message to all players
+    // with worldgenerationcontrol.statusmessage permissions,
+    // as well as the console. If a player/console (target) is 
+    // specified, include him regardless of his permissions.
+    // if senderOnly is true, only send the message to him.
+    private void statusMsg(String str, CommandSender target, boolean senderOnly)
+    {
+        //ChatColor.stripColor
+        String msg = ChatColor.DARK_GRAY + "[" + ChatColor.GRAY + "WorldGenerationControl" + ChatColor.DARK_GRAY + "]" + ChatColor.WHITE + " " + str;
+        
+        // Message target if provided
+        if (target instanceof Player)
+            // commandsender.sendmessage doesn't support color, even if its a player :<
+            ((Player)target).sendMessage(msg);
+        else if (target != null)
+            target.sendMessage(ChatColor.stripColor(msg));
+        
+        if (!senderOnly)
+        {
+            // Message all non-target players
+            for (Player p:getServer().getOnlinePlayers())
+            {
+                if (p != target && p.hasPermission("worldgenerationcontrol.statusupdates"))
+                    p.sendMessage(str);
+            }
+            
+            // Message console/logger, unless its the target
+            if (!(target instanceof ConsoleCommandSender))
+                logger.info(ChatColor.stripColor(msg));
+        }
+    }
     private void statusMsg(String str)
     {
-        this.statusMsg(str, this.commandSender, false);
+        this.statusMsg(str, null, false);
     }
-    private void statusMsg(String str, CommandSender sender)
+    private void statusMsg(String str, CommandSender target)
     {
-        this.statusMsg(str, sender, true);
-    }
-    private void statusMsg(String str, CommandSender sender, boolean senderOnly)
-    {
-        boolean isPlayer = (sender != null && sender instanceof Player);
-        
-        if (isPlayer)
-            ((Player)sender).sendMessage(ChatColor.DARK_GRAY + "[" + ChatColor.GRAY + "WorldGenerationControl" + ChatColor.DARK_GRAY + "]" + ChatColor.WHITE + " " + str);
-        if (!isPlayer || !senderOnly) System.out.println("[WorldGenerationControl] " + ChatColor.stripColor(str));
+        this.statusMsg(str, target, true);
     }
 
     public void onDisable()
@@ -574,8 +597,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             else
             {
-                if (sender instanceof Player && this.commandSender != sender)
-                    statusMsg("Generation canceled", sender);
                 statusMsg("Generation canceled by " + (sender instanceof Player ? ("player " + ChatColor.GOLD + ((Player)sender).getName() + ChatColor.WHITE) : "the console") + ", waiting for remaining chunks to unload.");
                 this.cancelGeneration();
             }
@@ -608,7 +629,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         if (this.taskId != 0)
             getServer().getScheduler().cancelTask(this.taskId);
         this.taskId = 0;
-        this.commandSender = null;
     }
 
     public void run()
