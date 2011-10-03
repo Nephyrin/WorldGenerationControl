@@ -640,7 +640,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             else
             {
-                statusMsg("Generation canceled by " + (sender instanceof Player ? ("player " + ChatColor.GOLD + ((Player)sender).getName() + ChatColor.WHITE) : "the console") + ", waiting for remaining chunks to unload.");
+                statusMsg("Generation canceled by " + (sender instanceof Player ? ("player " + ChatColor.GOLD + ((Player)sender).getName() + ChatColor.WHITE) : "the console") + ", waiting for current section to finish.");
                 this.cancelGeneration();
             }
         }
