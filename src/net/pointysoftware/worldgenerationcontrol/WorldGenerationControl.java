@@ -100,8 +100,11 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     }
     public class GenerationRegion
     {
-        GenerationRegion(World world, GenerationSpeed speed, GenerationLighting lighting)
+        GenerationRegion(World world, GenerationSpeed speed, GenerationLighting lighting) { this._construct(world, speed, lighting, false); }
+        GenerationRegion(World world, GenerationSpeed speed, GenerationLighting lighting, boolean debug) { this._construct(world, speed, lighting, debug); }
+        private void _construct(World world, GenerationSpeed speed, GenerationLighting lighting, boolean debug)
         {
+            this.debug = debug;
             this.totalregions = 0;
             this.world = world;
             this.speed = speed;
@@ -130,6 +133,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 // Run lighting step
                 // TODO print stuff
                 state = "Generating light";
+                long stime = debug ? System.nanoTime() : 0;
                 while ((speed == GenerationSpeed.ALLATONCE || speed == GenerationSpeed.VERYFAST || chunksPerTick > 0) && pendinglighting.size() > 0)
                 {
                     GenerationChunk x = pendinglighting.pop();
@@ -137,6 +141,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     pendingcleanup.push(x);
                     chunksPerTick--;
                 }
+                if (debug)
+                    statusMsg("\tDebug: Lighting took " + String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms");
             }
             else if (queuedregions.size() > 0)
             {
@@ -296,6 +302,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         private GenerationLighting fixlighting;
         private GenerationSpeed speed;
         private int totalregions;
+        private boolean debug;
     }
     private class GenerationChunk
     {
@@ -616,7 +623,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
 
             int numChunks;
-            GenerationRegion gen = new GenerationRegion(world, GenerationSpeed.NORMAL, GenerationLighting.NORMAL);
+            GenerationRegion gen = new GenerationRegion(world, GenerationSpeed.NORMAL, GenerationLighting.NORMAL, args.getSwitch("debug") != null);
             if (bCircular)
                 numChunks = gen.addCircularRegion(world, xCenter, zCenter, radius);
             else
