@@ -125,6 +125,28 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             boolean done = false;
             String state;
             long stime = debug ? System.nanoTime() : 0;
+            int step;
+            if (pendinglighting.size() > 0)
+            {
+                step = 2;
+                state = "Generating lighting";
+            }
+            else if (queuedregions.size() > 0)
+            {
+                step = 1;
+                state = "Loading chunks";
+            }
+            else
+            {
+                step = 3;
+                state = "Unloading and saving chunks";
+            }
+            
+            // Status message
+            double pct = 1 - ((pendinglighting.size() > 0 ? 0.5 : 0.) + (double)queuedregions.size()) / totalregions;
+            int region = totalregions - queuedregions.size() + (step == 1) ? 1 : 0;
+            statusMsg(ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + " Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + ChatColor.GRAY + " :: " + state);
+            
             if (pendinglighting.size() > 0)
             {
                 int chunksPerTick;
@@ -138,7 +160,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     chunksPerTick = 5;
                 // Run lighting step
                 // TODO print stuff
-                state = "Generating lighting";
                 while ((speed == GenerationSpeed.ALLATONCE || speed == GenerationSpeed.VERYFAST || chunksPerTick > 0) && pendinglighting.size() > 0)
                 {
                     GenerationChunk x = pendinglighting.pop();
@@ -149,7 +170,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             else if (queuedregions.size() > 0)
             {
-                state = "Loading";
                 QueuedRegion next = queuedregions.pop();
                 // Load these chunks as our step
                 GenerationChunk c;
@@ -164,14 +184,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             else
             {
-                state = "Unloading and saving chunks";
                 done = true;
             }
-            
-            // Status message
-            double pct = 1 - ((pendinglighting.size() > 0 ? 0.5 : 0.) + (double)queuedregions.size()) / totalregions;
-            int region = totalregions - queuedregions.size();
-            statusMsg(ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + " Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + ChatColor.GRAY + " :: " + state);
             
             // Handle pending-cleanup chunks
             if (done)
