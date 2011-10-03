@@ -123,13 +123,13 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             {
                 int chunksPerTick;
                 if (speed == GenerationSpeed.FAST)
-                    chunksPerTick = 20;
+                    chunksPerTick = 15;
                 else if (speed == GenerationSpeed.SLOW)
-                    chunksPerTick = 5;
+                    chunksPerTick = 3;
                 else if (speed == GenerationSpeed.VERYSLOW)
-                    chunksPerTick = 2;
+                    chunksPerTick = 1;
                 else
-                    chunksPerTick = 10;
+                    chunksPerTick = 5;
                 // Run lighting step
                 // TODO print stuff
                 state = "Generating light";
@@ -137,9 +137,9 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 while ((speed == GenerationSpeed.ALLATONCE || speed == GenerationSpeed.VERYFAST || chunksPerTick > 0) && pendinglighting.size() > 0)
                 {
                     GenerationChunk x = pendinglighting.pop();
-                    x.fixLighting();
+                    // Chunks that don't need lighting dont count to the total
+                    if (x.fixLighting()) chunksPerTick--;
                     pendingcleanup.push(x);
-                    chunksPerTick--;
                 }
                 if (debug)
                     statusMsg("\tDebug: Lighting took " + String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms");
