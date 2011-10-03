@@ -133,7 +133,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     chunksPerTick = 5;
                 // Run lighting step
                 // TODO print stuff
-                state = "Generating light";
+                state = "Generating lighting";
                 while ((speed == GenerationSpeed.ALLATONCE || speed == GenerationSpeed.VERYFAST || chunksPerTick > 0) && pendinglighting.size() > 0)
                 {
                     GenerationChunk x = pendinglighting.pop();
