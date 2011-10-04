@@ -211,7 +211,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 else
                     chunksPerTick = fixlighting == GenerationLighting.EXTREME ? 2 : 5;
                 // Run lighting step
-                // TODO print stuff
                 while ((speed == GenerationSpeed.ALLATONCE || chunksPerTick > 0) && pendinglighting.size() > 0)
                 {
                     GenerationChunk x = pendinglighting.pop();
@@ -405,9 +404,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     if (by == worldHeight - 1 || (extreme && bl.getLightLevel() < 15))
                     {
                         // All touched blocks have their state saved and re-applied
-                        // TODO -
-                        // I *think* this should be safe, but I need to do testing on various tile
-                        // entities to ensure it doesn't damage them.
                         BlockState s = bl.getState();
                         // The way lighting works branches based on how far the skylight reaches down.
                         // Thus by toggling the top block between solid and not, we force a lighting update
