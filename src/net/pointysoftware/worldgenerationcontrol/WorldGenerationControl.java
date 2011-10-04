@@ -233,7 +233,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             
             if (debug)
-                statusMsg("-- " + String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms elapsed. Currently " + world.getLoadedChunks().length + " chunks loaded.");
+                statusMsg("-- " + String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms elapsed. " + world.getLoadedChunks().length + " chunks now loaded");
             
             if (speed == GenerationSpeed.ALLATONCE)
                 return this.runStep(queued);
