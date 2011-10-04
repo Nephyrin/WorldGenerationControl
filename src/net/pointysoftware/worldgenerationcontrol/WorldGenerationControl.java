@@ -602,9 +602,9 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         boolean bCircular = commandLabel.compareToIgnoreCase("generatecircularregion") == 0 || commandLabel.compareToIgnoreCase("gencircle") == 0;
         if (bCircular || commandLabel.compareToIgnoreCase("generateregion") == 0 || commandLabel.compareToIgnoreCase("genregion") == 0)
         {
-            if (!sender.isOp())
+            if (!sender.isOp() && !sender.hasPermission("worldgenerationcontrol.generate"))
             {
-                statusMsg("Requires op status.", sender);
+                statusMsg(ChatColor.RED + "Only server ops or those with the worldgenerationcontrol.generate permission may do that :<", sender);
                 return true;
             }
             if     ((bCircular && (args.length() != 1 && args.length() != 4))
