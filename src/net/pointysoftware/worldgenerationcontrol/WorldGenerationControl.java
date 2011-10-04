@@ -739,7 +739,10 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             if (this.pendingRegions.size() > 0)
                 this.currentRegion = this.pendingRegions.pop();
             else
+            {
+                this.currentRegion = null;
                 this.endTask();
+            }
         }
     }
 }
