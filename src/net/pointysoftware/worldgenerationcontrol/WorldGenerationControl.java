@@ -201,9 +201,9 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             {
                 int chunksPerTick;
                 if (speed == GenerationSpeed.VERYFAST)
-                    chunksPerTick = fixlighting == GenerationLighting.EXTREME ? 12 : 25;
+                    chunksPerTick = fixlighting == GenerationLighting.EXTREME ? 12 : 60;
                 if (speed == GenerationSpeed.FAST)
-                    chunksPerTick = fixlighting == GenerationLighting.EXTREME ? 5 : 15;
+                    chunksPerTick = fixlighting == GenerationLighting.EXTREME ? 5 : 30;
                 else if (speed == GenerationSpeed.SLOW)
                     chunksPerTick = fixlighting == GenerationLighting.EXTREME ? 1 : 3;
                 else if (speed == GenerationSpeed.VERYSLOW)
