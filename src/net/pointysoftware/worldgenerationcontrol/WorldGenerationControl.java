@@ -80,18 +80,21 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     }
     public enum GenerationLighting
     {
+        // EXISTING ones specify that we should
+        // relight existing chunks in the region as well
+        
         // Force update every chunk without
         // fullbright lighting, completely
         // recalculating all lighting in the
         // area. This will take 3x longer
         // than the rest of the generation
         // combined...
-        EXTREME,
+        EXTREME, EXTREME_EXISTING,
         // Force update all lighting by toggling
         // skyblocks. This will easily double
         // generation times, but give you proper
         // lighting on generated chunks
-        NORMAL,
+        NORMAL, NORMAL_EXISTING,
         // Don't force lighting. Generated areas
         // will have invalid lighting until a
         // player wanders near them. This is only
@@ -117,7 +120,9 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             this.queuedregions = new ArrayDeque<QueuedRegion>();
             this.starttime = 0;
             
-            if (this.speed == GenerationSpeed.NORMAL) regionsize = 12;
+            if (this.speed == GenerationSpeed.VERYFAST) regionsize = 32;
+            else if (this.speed == GenerationSpeed.FAST) regionsize = 24;
+            else if (this.speed == GenerationSpeed.NORMAL) regionsize = 12;
             else if (this.speed == GenerationSpeed.SLOW) regionsize = 8;
             else if (this.speed == GenerationSpeed.VERYSLOW) regionsize = 6;
             else regionsize = 20;
@@ -210,8 +215,10 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 while ((speed == GenerationSpeed.ALLATONCE || chunksPerTick > 0) && pendinglighting.size() > 0)
                 {
                     GenerationChunk x = pendinglighting.pop();
-                    // Chunks that don't need lighting dont count to the total
-                    if (x.fixLighting(fixlighting == GenerationLighting.EXTREME)) chunksPerTick--;
+                    // Only light chunks that were made by us, unless a _EXISTING lighting option was specified
+                    if (x.wasCreated() || fixlighting == GenerationLighting.EXTREME_EXISTING || fixlighting == GenerationLighting.NORMAL_EXISTING)
+                        // Chunks that don't need lighting dont count to the total
+                        if (x.fixLighting(fixlighting == GenerationLighting.EXTREME)) chunksPerTick--;
                     pendingcleanup.push(x);
                 }
             }
@@ -359,9 +366,11 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         private int x, z;
         private World world;
         private Chunk chunk;
-        GenerationChunk(int x, int z, World world) { this.x = x; this.z = z; this.world = world; }
+        private boolean wascreated;
+        GenerationChunk(int x, int z, World world) { this.x = x; this.z = z; this.world = world; this.wascreated = false; }
         public int getX() { return x; }
         public int getZ() { return z; }
+        public boolean wasCreated() { return this.wascreated; }
         // This references a lot of blocks, if calling this on a lot of chunks,
         // a System.gc() afterwards might be necessary to prevent overhead errors.
         public boolean fixLighting() { return this.fixLighting(false); }
@@ -420,7 +429,21 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         {
             this.chunk = this.world.getChunkAt(this.x, this.z);
             if (!this.chunk.isLoaded())
-                this.chunk.load(true);
+            {
+                // Try to load it without allowing generation.
+                // to determine if it already existed
+                if (this.chunk.load(false))
+                {
+                    this.wascreated = false;
+                }
+                else
+                {
+                    this.chunk.load(true);
+                    this.wascreated = true;
+                }
+            }
+            else
+                this.wascreated = false;
         }
         public void unload()
         {
@@ -675,13 +698,17 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             
             GenerationLighting lighting;
             String lightswitch = args.getSwitch("light");
+            boolean lightexisting = args.getSwitch("lightexisting") != null;
             if (lightswitch != null) lightswitch = lightswitch.toLowerCase();
+            
+            if (lightexisting && lightswitch == null) lightswitch = "normal"; // /lightexisting implies /light
+            
             if (lightswitch != null && !lightswitch.equals("none"))
             {
                 if (lightswitch.equals("extreme"))
-                    lighting = GenerationLighting.EXTREME;
+                    lighting = lightexisting ? GenerationLighting.EXTREME_EXISTING : GenerationLighting.EXTREME;
                 else if (lightswitch.equals("true") || lightswitch.equals("normal"))
-                    lighting = GenerationLighting.NORMAL;
+                    lighting = lightexisting ? GenerationLighting.NORMAL_EXISTING : GenerationLighting.NORMAL;
                 else
                 {
                     statusMsg("Invalid lighting mode \""+lightswitch+"\"");
