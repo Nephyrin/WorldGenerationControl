@@ -693,7 +693,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 speed = GenerationSpeed.VERYSLOW;
             
             GenerationLighting lighting;
-            String lightswitch = args.getSwitch("light");
+            String lightswitch = args.getSwitch("lighting");
             boolean lightexisting = args.getSwitch("lightexisting") != null;
             if (lightswitch != null) lightswitch = lightswitch.toLowerCase();
             
