@@ -718,7 +718,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
 
     public void cancelGeneration()
     {
-        if (this.currentRegion) this.currentRegion.cancelPending();
+        if (this.currentRegion != null) this.currentRegion.cancelRemaining();
         this.pendingRegions.clear();
     }
     
