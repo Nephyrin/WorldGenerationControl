@@ -523,7 +523,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     private Logger logger = Bukkit.getLogger();
     private GenerationRegion currentRegion;
     private ArrayDeque<GenerationRegion> pendingRegions = new ArrayDeque<GenerationRegion>();
-    private ArrayList<GenerationChunk> ourChunks = new ArrayList<GenerationChunk>();
     private int taskId = 0;
     
     public void onEnable()
