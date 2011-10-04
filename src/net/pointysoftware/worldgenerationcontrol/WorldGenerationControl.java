@@ -134,12 +134,18 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         }
         
         // returns true if complete
+        // queued is number of generations the plugin intends to run after this
+        // or -1 if the plugin intends to shutdown the server after this!
         public boolean runStep(int queued)
         {
             if (this.starttime == 0)
                 this.starttime = System.nanoTime();
             
-            String queuedtext = queued > 0 ? ChatColor.DARK_GRAY + " {" + ChatColor.GRAY + queued + " generations in queue" + ChatColor.DARK_GRAY + "}" : "";
+            String queuedtext = "";
+            if (queued > 0)
+                queuedtext = ChatColor.DARK_GRAY + " {" + ChatColor.GRAY + queued + " generations in queue" + ChatColor.DARK_GRAY + "}";
+            if (queued == -1)
+                queuedtext = ChatColor.DARK_GRAY + " {" + ChatColor.DARK_RED + "shutdown scheduled" + ChatColor.DARK_GRAY + "}";
             
             String state;
             long stime = debug ? System.nanoTime() : 0;
@@ -172,7 +178,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     + (minutes > 0 ? String.format("%d minutes, ", minutes % 60) : "")
                     + String.format("%d seconds", seconds % 60);
                     
-                statusMsg("Generation complete in " + took + ". " + (queuedtext.length() > 0 ? "Loading next generation job" : "Have a nice day!") + queuedtext);
+                statusMsg("Generation complete in " + took + ". " + (queued > 0 ? "Loading next generation job" : "Have a nice day!") + queuedtext);
                 return true;
             }
             
@@ -524,6 +530,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     private GenerationRegion currentRegion;
     private ArrayDeque<GenerationRegion> pendingRegions = new ArrayDeque<GenerationRegion>();
     private int taskId = 0;
+    private boolean quitAfter = false;
     
     public void onEnable()
     {
@@ -725,6 +732,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 return true;
             }
             this.queueGeneration(gen);
+            if (args.getSwitch("quitafter") != null)
+                this.quitAfterGeneration(true);
             statusMsg((sender instanceof Player ? ("Player " + ChatColor.GOLD + ((Player)sender).getName() + ChatColor.WHITE) : "The console") + " queued generation of " + numChunks + " chunk region (" + (numChunks * 16) + " blocks).");
         }
         else if (commandLabel.compareToIgnoreCase("cancelgeneration") == 0 || commandLabel.compareToIgnoreCase("cancelgen") == 0)
@@ -754,8 +763,12 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         }
     }
 
+    public void quitAfterGeneration() { this.quitAfterGeneration(true); }
+    public void quitAfterGeneration(boolean yesno) { if (this.currentRegion != null) this.quitAfter = yesno; }
+    
     public void cancelGeneration()
     {
+        this.quitAfter = false;
         if (this.currentRegion != null) this.currentRegion.cancelRemaining();
         this.pendingRegions.clear();
     }
@@ -771,8 +784,10 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     public void run()
     {
         if (this.taskId == 0) return; // Prevent inappropriate calls
+
         int pending = this.pendingRegions.size();
-        if (this.currentRegion.runStep(pending))
+        // Pass -1 as pending if we're about to quit
+        if (this.currentRegion.runStep((pending == 0 && this.quitAfter) ? -1 : pending))
         {
             if (pending > 0)
                 this.currentRegion = this.pendingRegions.pop();
@@ -780,6 +795,11 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             {
                 this.currentRegion = null;
                 this.endTask();
+                if (this.quitAfter)
+                {
+                    statusMsg("/quitAfter specified, shutting down");
+                    getServer().shutdown();
+                }
             }
         }
     }
