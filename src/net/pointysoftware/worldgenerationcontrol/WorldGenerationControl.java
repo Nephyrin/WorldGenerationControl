@@ -452,7 +452,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     if (m.group(2) != null && rawarg.charAt(0) == '/')
                     {
                         // Handle switches. (Matches in group 1 are quoted arugments. They cannot be switches.)
-                        String st[] = arg.substring(1).split("/:/");
+                        String st[] = arg.substring(1).split(":");
                         if (st.length > 2)
                             throw new NiceArgsParseException("Invalid option: " + arg.substring(1));
                         this.switches.put(st[0].toLowerCase(), st.length == 2 ? st[1] : "true");
@@ -655,7 +655,26 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 speed = GenerationSpeed.SLOW;
             else if (args.getSwitch("veryslow") != null)
                 speed = GenerationSpeed.VERYSLOW;
-            GenerationRegion gen = new GenerationRegion(world, speed, GenerationLighting.NORMAL, args.getSwitch("debug") != null);
+            
+            GenerationLighting lighting;
+            String lightswitch = args.getSwitch("light");
+            if (lightswitch != null) lightswitch = lightswitch.toLowerCase();
+            if (lightswitch != null && !lightswitch.equals("none"))
+            {
+                if (lightswitch.equals("extreme"))
+                    lighting = GenerationLighting.EXTREME;
+                else if (lightswitch.equals("true") || lightswitch.equals("normal"))
+                    lighting = GenerationLighting.NORMAL;
+                else
+                {
+                    statusMsg("Invalid lighting mode \""+lightswitch+"\"");
+                    return true;
+                }
+            }
+            else
+                lighting = GenerationLighting.NONE;
+            
+            GenerationRegion gen = new GenerationRegion(world, speed, lighting, args.getSwitch("debug") != null);
             if (bCircular)
                 numChunks = gen.addCircularRegion(world, xCenter, zCenter, radius);
             else
