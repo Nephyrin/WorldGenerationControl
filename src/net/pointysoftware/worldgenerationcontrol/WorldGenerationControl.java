@@ -115,7 +115,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             this.pendinglighting = new ArrayDeque<GenerationChunk>();
             this.pendingcleanup = new ArrayDeque<GenerationChunk>();
             this.queuedregions = new ArrayDeque<QueuedRegion>();
-
+            this.starttime = 0;
+            
             if (this.speed == GenerationSpeed.NORMAL) regionsize = 12;
             else if (this.speed == GenerationSpeed.SLOW) regionsize = 8;
             else if (this.speed == GenerationSpeed.VERYSLOW) regionsize = 6;
@@ -130,24 +131,44 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         // returns true if complete
         public boolean runStep(int queued)
         {
-            boolean done = false;
+            if (this.starttime == 0)
+                this.starttime = System.nanoTime();
+            
+            String queuedtext = queued > 0 ? ChatColor.DARK_GRAY + " {" + ChatColor.GRAY + queued + " generations in queue" + ChatColor.DARK_GRAY + "}" : "";
+            
             String state;
             long stime = debug ? System.nanoTime() : 0;
             int step;
-            if (pendinglighting.size() > 0)
-            {
-                step = 2;
-                state = "Generating lighting";
-            }
-            else if (queuedregions.size() > 0)
+            if (queuedregions.size() > 0)
             {
                 step = 1;
                 state = "Loading chunks";
             }
-            else
+            else if (pendinglighting.size() > 0)
+            {
+                step = 2;
+                state = "Generating lighting";
+            }
+            else if (pendingcleanup.size() > 0)
             {
                 step = 3;
                 state = "Unloading and saving chunks";
+            }
+            else
+            {
+                // Generation complete
+                long millis = (System.nanoTime() - this.starttime) / 1000000;
+                long seconds = millis / 1000;
+                long minutes = seconds / 60;
+                long hours = minutes / 60;
+                long days = hours / 24;
+                String took = (days > 0 ? String.format("%d days, ", days) : "")
+                    + (hours > 0 ? String.format("%d hours, ", hours % 24) : "")
+                    + (minutes > 0 ? String.format("%d minutes, ", minutes % 60) : "")
+                    + String.format("%d seconds", seconds % 60);
+                    
+                statusMsg("Generation complete in " + took + ". " + (queuedtext.length() > 0 ? "Loading next generation job" : "Have a nice day!") + queuedtext);
+                return true;
             }
             
             // Status message
@@ -155,10 +176,23 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             // Assumes lighting is 92% of each chunk's processing, a rough estimate based on timing a generation on my system
             double pct = 1 - ((double)queuedregions.size() + 0.92 * lightingpct) / totalregions;
             int region = totalregions - queuedregions.size() + (step == 1 ? 1 : 0);
-            String queuedtext = queued > 0 ? ChatColor.DARK_GRAY + " {" + ChatColor.GRAY + queued + " generations in queue" + ChatColor.DARK_GRAY + "}" : "";
             statusMsg(ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + " Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + ChatColor.GRAY + " :: " + state + queuedtext);
             
-            if (pendinglighting.size() > 0)
+            if (step == 1)
+            {
+                QueuedRegion next = queuedregions.pop();
+                // Load these chunks as our step
+                GenerationChunk c;
+                while ((c = next.getChunk(this.world)) != null)
+                {
+                    c.load();
+                    if (this.fixlighting == GenerationLighting.NONE)
+                        pendingcleanup.push(c);
+                    else
+                        pendinglighting.push(c);
+                }
+            }
+            else if (step == 2)
             {
                 int chunksPerTick;
                 if (speed == GenerationSpeed.VERYFAST)
@@ -181,27 +215,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     pendingcleanup.push(x);
                 }
             }
-            else if (queuedregions.size() > 0)
-            {
-                QueuedRegion next = queuedregions.pop();
-                // Load these chunks as our step
-                GenerationChunk c;
-                while ((c = next.getChunk(this.world)) != null)
-                {
-                    c.load();
-                    if (this.fixlighting == GenerationLighting.NONE)
-                        pendingcleanup.push(c);
-                    else
-                        pendinglighting.push(c);
-                }
-            }
-            else
-            {
-                done = true;
-            }
-            
-            // Handle pending-cleanup chunks
-            if (done)
+            else if (step == 3)
             {
                 Iterator<GenerationChunk> cleaner = pendingcleanup.iterator();
                 while (cleaner.hasNext())
@@ -214,8 +228,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             if (debug)
                 statusMsg("\tDebug: This step took " + String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms. Currently " + world.getLoadedChunks().length + " chunks loaded.");
             
-            if (done)
-                return true;
             if (speed == GenerationSpeed.ALLATONCE)
                 return this.runStep(queued);
             else
@@ -339,6 +351,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         private GenerationSpeed speed;
         private int totalregions;
         private int regionsize;
+        private long starttime;
         private boolean debug;
     }
     private class GenerationChunk
