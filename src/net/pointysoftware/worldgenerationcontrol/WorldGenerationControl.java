@@ -144,15 +144,15 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             String state;
             long stime = debug ? System.nanoTime() : 0;
             int step;
-            if (pendingcleanup.size() > 0)
-            {
-                step = 3;
-                state = "Unloading and saving chunks";
-            }
-            else if (pendinglighting.size() > 0)
+            if (pendinglighting.size() > 0)
             {
                 step = 2;
                 state = "Generating lighting";
+            }
+            else if (pendingcleanup.size() > 0)
+            {
+                step = 3;
+                state = "Unloading and saving chunks";
             }
             else if (queuedregions.size() > 0)
             {
