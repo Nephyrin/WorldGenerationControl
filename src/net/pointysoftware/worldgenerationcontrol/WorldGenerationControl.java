@@ -122,6 +122,11 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             else regionsize = 20;
         }
         
+        public void cancelRemaining()
+        {
+            this.queuedregions.clear();
+        }
+        
         // returns true if complete
         public boolean runStep(int queued)
         {
@@ -713,10 +718,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
 
     public void cancelGeneration()
     {
-        if (this.taskId != 0)
-        {
-            this.pendingRegions.clear();
-        }
+        if (this.currentRegion) this.currentRegion.cancelPending();
+        this.pendingRegions.clear();
     }
     
     // use cancelGeneration to stop generation, this should only be used internally
