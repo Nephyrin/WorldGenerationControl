@@ -562,11 +562,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 statusMsg("Requires op status.", sender);
                 return true;
             }
-            if (this.taskId != 0)
-            {
-                statusMsg("Generation already in progress.", sender);
-                return true;
-            }
             if     ((bCircular && (args.length() != 1 && args.length() != 4))
                 || !bCircular && (args.length() != 5))
             {
@@ -686,7 +681,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 return true;
             }
             this.queueGeneration(gen);
-            statusMsg((sender instanceof Player ? ("Player " + ChatColor.GOLD + ((Player)sender).getName() + ChatColor.WHITE) : "The console") + " started generation of " + numChunks + " chunk region (" + (numChunks * 16) + " blocks).");
+            statusMsg((sender instanceof Player ? ("Player " + ChatColor.GOLD + ((Player)sender).getName() + ChatColor.WHITE) : "The console") + " queued generation of " + numChunks + " chunk region (" + (numChunks * 16) + " blocks).");
         }
         else if (commandLabel.compareToIgnoreCase("cancelgeneration") == 0 || commandLabel.compareToIgnoreCase("cancelgen") == 0)
         {
