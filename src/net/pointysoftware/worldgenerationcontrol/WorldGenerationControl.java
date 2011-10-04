@@ -152,7 +152,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             else if (pendingcleanup.size() > 0)
             {
                 step = 3;
-                state = "Unloading and saving chunks";
+                state = "Saving chunks";
             }
             else if (queuedregions.size() > 0)
             {
