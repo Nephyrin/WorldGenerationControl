@@ -123,7 +123,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         }
         
         // returns true if complete
-        public boolean runStep()
+        public boolean runStep(int queued)
         {
             boolean done = false;
             String state;
@@ -150,7 +150,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             // Assumes lighting is 92% of each chunk's processing, a rough estimate based on timing a generation on my system
             double pct = 1 - ((double)queuedregions.size() + 0.92 * lightingpct) / totalregions;
             int region = totalregions - queuedregions.size() + (step == 1 ? 1 : 0);
-            statusMsg(ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + " Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + ChatColor.GRAY + " :: " + state);
+            String queuedtext = queued > 0 ? ChatColor.DARK_GRAY + " {" + ChatColor.GRAY + queued + " generations in queue" + ChatColor.DARK_GRAY + "}" : "";
+            statusMsg(ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + " Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + ChatColor.GRAY + " :: " + state + queuedtext);
             
             if (pendinglighting.size() > 0)
             {
@@ -211,7 +212,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             if (done)
                 return true;
             if (speed == GenerationSpeed.ALLATONCE)
-                return this.runStep();
+                return this.runStep(queued);
             else
                 return false;
         }
@@ -729,9 +730,10 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     public void run()
     {
         if (this.taskId == 0) return; // Prevent inappropriate calls
-        if (this.currentRegion.runStep())
+        int pending = this.pendingRegions.size();
+        if (this.currentRegion.runStep(pending))
         {
-            if (this.pendingRegions.size() > 0)
+            if (pending > 0)
                 this.currentRegion = this.pendingRegions.pop();
             else
             {
