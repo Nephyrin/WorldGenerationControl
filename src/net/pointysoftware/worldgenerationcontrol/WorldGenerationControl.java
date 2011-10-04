@@ -543,7 +543,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     private void statusMsg(String str, CommandSender target, boolean senderOnly)
     {
         //ChatColor.stripColor
-        String msg = ChatColor.DARK_GRAY + "[" + ChatColor.GRAY + "WorldGenerationControl" + ChatColor.DARK_GRAY + "]" + ChatColor.WHITE + " " + str;
+        String msg = ChatColor.DARK_GRAY + "[" + ChatColor.GRAY + "WorldGenCtrl" + ChatColor.DARK_GRAY + "]" + ChatColor.WHITE + " " + str;
         
         // Message target if provided
         if (target instanceof Player)
