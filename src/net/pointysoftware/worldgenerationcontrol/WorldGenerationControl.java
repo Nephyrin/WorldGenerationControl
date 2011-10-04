@@ -558,7 +558,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             for (Player p:getServer().getOnlinePlayers())
             {
                 if (p != target && p.hasPermission("worldgenerationcontrol.statusupdates"))
-                    p.sendMessage(str);
+                    p.sendMessage(msg);
             }
             
             // Message console/logger, unless its the target
