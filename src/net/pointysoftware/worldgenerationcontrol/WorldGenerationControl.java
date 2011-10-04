@@ -61,13 +61,16 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         // Do everything on the same tick, locking up
         // the server until the generation is complete.
         ALLATONCE,
-        // Process whole regions per tick, extremely laggy.
+        // Split up region loading and lighting fixes,
+        // processing in ticks. Very laggy, but doesn't
+        // freeze the server.
         VERYFAST,
-        // Split up region loading and lighting fixes
-        // laggy, but playable.
+        // Process way smaller regions and way less
+        // lighting per tick. Laggy, but playable.
         FAST,
-        // like fast, but smaller regions, moderate
-        // lag depending on conditions
+        // Process even smaller regions and even less
+        // lighting per tick. Causes mild to moderate
+        // lag.
         NORMAL,
         // even smaller regions, less lag
         SLOW,
@@ -152,21 +155,23 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             if (pendinglighting.size() > 0)
             {
                 int chunksPerTick;
+                if (speed == GenerationSpeed.VERYFAST)
+                    chunksPerTick = fixlighting == GenerationLighting.EXTREME ? 12 : 25;
                 if (speed == GenerationSpeed.FAST)
-                    chunksPerTick = 15;
+                    chunksPerTick = fixlighting == GenerationLighting.EXTREME ? 5 : 15;
                 else if (speed == GenerationSpeed.SLOW)
-                    chunksPerTick = 3;
+                    chunksPerTick = fixlighting == GenerationLighting.EXTREME ? 1 : 3;
                 else if (speed == GenerationSpeed.VERYSLOW)
                     chunksPerTick = 1;
                 else
-                    chunksPerTick = 5;
+                    chunksPerTick = fixlighting == GenerationLighting.EXTREME ? 2 : 5;
                 // Run lighting step
                 // TODO print stuff
-                while ((speed == GenerationSpeed.ALLATONCE || speed == GenerationSpeed.VERYFAST || chunksPerTick > 0) && pendinglighting.size() > 0)
+                while ((speed == GenerationSpeed.ALLATONCE || chunksPerTick > 0) && pendinglighting.size() > 0)
                 {
                     GenerationChunk x = pendinglighting.pop();
                     // Chunks that don't need lighting dont count to the total
-                    if (x.fixLighting()) chunksPerTick--;
+                    if (x.fixLighting(fixlighting == GenerationLighting.EXTREME)) chunksPerTick--;
                     pendingcleanup.push(x);
                 }
             }
@@ -337,7 +342,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         public int getZ() { return z; }
         // This references a lot of blocks, if calling this on a lot of chunks,
         // a System.gc() afterwards might be necessary to prevent overhead errors.
-        public boolean fixLighting()
+        public boolean fixLighting() { return this.fixLighting(false); }
+        public boolean fixLighting(boolean extreme)
         {
             // Don't run this step on chunks without all adjacent chunks loaded, or it will
             // actually corrupt the lighting
@@ -362,23 +368,25 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 // Since he's removed at the end of this function he doesn't live for a single tick,
                 // so it doesn't matter if this puts him in a solid object - he doesn't have time to suffocate.
                 LivingEntity bobthechicken = this.world.spawnCreature(this.chunk.getBlock(8, worldHeight - 1, 8).getLocation(), CreatureType.CHICKEN);
-                ArrayList<BlockState> touchedblocks = new ArrayList<BlockState>();
-                for (int bx = 0; bx < 16; bx++) for (int bz = 0; bz < 16; bz++)
+                for (int bx = 0; bx < 16; bx++) for (int bz = 0; bz < 16; bz++) for (int by = extreme ? 0 : worldHeight - 1; by < worldHeight; by++)
                 {
-                    Block bl = this.chunk.getBlock(bx, worldHeight - 1, bz);
-                    // All touched blocks have their state saved and re-applied after the loop.
-                    // TODO -
-                    // I *think* this should be safe, but I need to do testing on various tile
-                    // entities placed at max height to ensure it doesn't damage them.
-                    BlockState s = bl.getState();
-                    // The way lighting works branches based on how far the skylight reaches down.
-                    // Thus by toggling the top block between solid and not, we force a lighting update
-                    // on this column of blocks.
-                    if (bl.isEmpty())
-                        bl.setType(Material.STONE);
-                    else
-                        bl.setType(Material.AIR);
-                    s.update(true);
+                    Block bl = this.chunk.getBlock(bx, by, bz);
+                    if (by == worldHeight - 1 || (extreme && bl.getLightLevel() < 15))
+                    {
+                        // All touched blocks have their state saved and re-applied
+                        // TODO -
+                        // I *think* this should be safe, but I need to do testing on various tile
+                        // entities to ensure it doesn't damage them.
+                        BlockState s = bl.getState();
+                        // The way lighting works branches based on how far the skylight reaches down.
+                        // Thus by toggling the top block between solid and not, we force a lighting update
+                        // on this column of blocks.
+                        if (bl.isEmpty())
+                            bl.setType(Material.STONE);
+                        else
+                            bl.setType(Material.AIR);
+                        s.update(true);
+                    }
                 }
                 
                 bobthechicken.remove();
