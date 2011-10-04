@@ -250,11 +250,14 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             // and lighting can run. (edge chunks wont work in either)
             int overlap = 2;
             
-            int zNext = zStart + overlap;
-            int xNext = xStart + overlap;
+            int zNext = zStart;
+            int xNext = xStart;
             
             while (zNext <= zEnd)
             {
+                if (zNext == zStart) zNext += overlap;
+                if (xNext == xStart) xNext += overlap;
+                
                 int x1 = xNext - overlap;
                 int x2 = Math.min(x1 + regionsize - 1, xEnd);
                 int z1 = zNext - overlap;
