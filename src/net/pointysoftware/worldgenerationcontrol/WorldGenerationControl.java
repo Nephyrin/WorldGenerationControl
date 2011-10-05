@@ -128,6 +128,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             else regionsize = 20;
         }
         
+        public boolean shouldRunAllAtOnce() { return this.speed == GenerationSpeed.ALLATONCE; }
+        
         public void cancelRemaining()
         {
             this.queuedregions.clear();
@@ -217,7 +219,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 else
                     chunksPerTick = fixlighting == GenerationLighting.EXTREME ? 2 : 5;
                 // Run lighting step
-                while ((speed == GenerationSpeed.ALLATONCE || chunksPerTick > 0) && pendinglighting.size() > 0)
+                while (chunksPerTick > 0 && pendinglighting.size() > 0)
                 {
                     GenerationChunk x = pendinglighting.pop();
                     // Only light chunks that were made by us, unless a _EXISTING lighting option was specified
@@ -240,10 +242,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             if (debug)
                 statusMsg("-- " + String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms elapsed. " + world.getLoadedChunks().length + " chunks now loaded");
             
-            if (speed == GenerationSpeed.ALLATONCE)
-                return this.runStep(queued);
-            else
-                return false;
+            return false;
         }
         
         // Returns number of chunks queued
@@ -759,7 +758,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         else
         {
             this.currentRegion = region;
-            this.taskId = getServer().getScheduler().scheduleSyncRepeatingTask(this, this, 60, 60);
+            this.restartTask(region.shouldRunAllAtOnce() ? 2 : 60);
         }
     }
 
@@ -780,6 +779,13 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             getServer().getScheduler().cancelTask(this.taskId);
         this.taskId = 0;
     }
+    
+    private void restartTask() { this.restartTask(60); }
+    private void restartTask(int period)
+    {
+        this.endTask();
+        this.taskId = getServer().getScheduler().scheduleSyncRepeatingTask(this, this, period, period);
+    }
 
     public void run()
     {
@@ -790,7 +796,14 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         if (this.currentRegion.runStep((pending == 0 && this.quitAfter) ? -1 : pending))
         {
             if (pending > 0)
-                this.currentRegion = this.pendingRegions.pop();
+            {
+                GenerationRegion next = this.pendingRegions.pop();
+                // Adjust scheduling if needed
+                if (this.currentRegion.shouldRunAllAtOnce() != next.shouldRunAllAtOnce())
+                    this.restartTask(next.shouldRunAllAtOnce() ? 2 : 60);
+
+                this.currentRegion = next;
+            }
             else
             {
                 this.currentRegion = null;
