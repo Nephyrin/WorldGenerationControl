@@ -55,7 +55,7 @@ import org.bukkit.scheduler.BukkitScheduler;
 
 public class WorldGenerationControl extends JavaPlugin implements Runnable
 {
-    private final static String VERSION = "2.0";
+    private final static String VERSION = "2.1";
     public enum GenerationSpeed
     {
         // Do everything on the same tick, locking up
