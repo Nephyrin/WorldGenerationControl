@@ -138,25 +138,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         // or -1 if the plugin intends to shutdown the server after this!
         public boolean runStep(int queued)
         {
-            if (this.speed == GenerationSpeed.ALLATONCE)
-            {
-                while (!this._runStep(queued))
-                {
-                    // Ward off doom for another brief moment. Oh java, you so crazy.
-                    // (fixLighting in particular references a *ton* of block objects, a ton of chunks,
-                    // and so on. I've had the system die due to GC Overhead errors when memory should
-                    // not have been constrained)
-                    System.runFinalization();
-                    System.gc();
-                }
-                return true;
-            }
-            else
-                return this._runStep(queued);
-        }
-        
-        private boolean _runStep(int queued)
-        {
             if (this.starttime == 0)
                 this.starttime = System.nanoTime();
             
@@ -259,7 +240,10 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             if (debug)
                 statusMsg("-- " + String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms elapsed. " + world.getLoadedChunks().length + " chunks now loaded");
             
-            return false;
+            if (speed == GenerationSpeed.ALLATONCE)
+                return this.runStep(queued);
+            else
+                return false;
         }
         
         // Returns number of chunks queued
