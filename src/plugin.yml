@@ -1,4 +1,4 @@
-name: ForcegenChunks
+name: WorldGenerationControl
 main: net.pointysoftware.worldgenerationcontrol.WorldGenerationControl
 version: 2.0
 author: john@pointysoftware.net
