@@ -198,8 +198,18 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 QueuedRegion next = queuedregions.pop();
                 // Load these chunks as our step
                 GenerationChunk c;
+                ArrayDeque<GenerationChunk> chunks = new ArrayDeque<GenerationChunk>();
                 while ((c = next.getChunk(this.world)) != null)
+                    chunks.push(c);
+                if (this.forceregeneration)
                 {
+                    Iterator<GenerationChunk> i = chunks.iterator();
+                    while (i.hasNext())
+                        i.next().unload(true);
+                }
+                while (chunks.size() > 0)
+                {
+                    c = chunks.pop();
                     c.load(this.forceregeneration);
                     if (this.fixlighting == GenerationLighting.NONE)
                         pendingcleanup.push(c);
@@ -454,10 +464,12 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 this.wascreated = true;
             }
         }
-        public void unload()
+        
+        public void unload() { this.unload(false); }
+        public void unload(boolean force)
         {
             if (this.world.isChunkLoaded(this.x, this.z))
-                this.world.unloadChunk(x, z, true);
+                this.world.unloadChunk(x, z, !force, !force);
         }
     }
     
