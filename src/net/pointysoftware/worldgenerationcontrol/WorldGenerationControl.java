@@ -725,7 +725,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             else
                 lighting = GenerationLighting.NONE;
             
-            GenerationRegion gen = new GenerationRegion(world, speed, lighting, args.getSwitch("debug") != null || args.getSwitch("verbose") != null);
+            GenerationRegion gen = new GenerationRegion(world, speed, lighting, args.getSwitch("debug") != null || args.getSwitch("verbose") != null, args.getSwitch("destroyAndRegenerateArea") != null);
             if (bCircular)
                 numChunks = gen.addCircularRegion(world, xCenter, zCenter, radius);
             else
