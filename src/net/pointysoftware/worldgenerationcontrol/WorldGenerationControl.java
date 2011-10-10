@@ -438,11 +438,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 // Try to load it without allowing generation.
                 // to determine if it already existed
                 if (this.chunk.load(false))
-                {
-                    if (regenerateChunk)
-                        this.world.regenerateChunk(this.x, this.z);
-                    this.wascreated = regenerateChunk;
-                }
+                    this.wascreated = false;
                 else
                 {
                     this.chunk.load(true);
@@ -451,6 +447,12 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             else
                 this.wascreated = false;
+            
+            if (regenerateChunk && !this.wascreated)
+            {
+                this.world.regenerateChunk(this.x, this.z);
+                this.wascreated = true;
+            }
         }
         public void unload()
         {
