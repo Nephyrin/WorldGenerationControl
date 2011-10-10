@@ -639,7 +639,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     if (sender instanceof Player && args.length() < 4)
                     {
                         // Use player's location to center circle
-                        Chunk c = ((Player)sender).getLocation().getBlock().getChunk();
+                        Block c = ((Player)sender).getLocation().getBlock();
                         world = c.getWorld();
                         xCenter = c.getX();
                         zCenter = c.getZ();
