@@ -1,4 +1,4 @@
-WorldGenerationControl 2.0
+WorldGenerationControl 2.1
 =================
 Formerly ForceGenChunks
 *Which is a confusing ass name so I changed it*
@@ -129,7 +129,7 @@ out when EOF is encountered in input, the proper way to do this would be somethi
 
 Download
 -----------------
-https://github.com/downloads/Nephyrin/WorldGenerationControl/WorldGenerationControl_v2.0.jar
+https://github.com/downloads/Nephyrin/WorldGenerationControl/WorldGenerationControl_v2.1.jar
 
 Source
 -----------------
@@ -137,6 +137,10 @@ https://github.com/Nephyrin/WorldGenerationControl
 
 ChangeLog
 -----------------
+- 2.1
+    - Fixed issue with /allAtOnce being too aggressive on lighting, causing memory issues on low-memory servers.
+    - allAtOnce mode now returns into the server briefly between ticks, allowing other commands (such as /cancelgen) to
+      be run.
 - 2.0
     - Name changed to WorldGenerationControl from ForceGenChunks
     - Large rewrite
