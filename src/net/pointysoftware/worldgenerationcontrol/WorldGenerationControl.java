@@ -41,6 +41,7 @@ import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.Location;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.CreatureType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -205,7 +206,11 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 {
                     Iterator<GenerationChunk> i = chunks.iterator();
                     while (i.hasNext())
-                        i.next().unload(true);
+                    {
+                        GenerationChunk gc = i.next();
+                        gc.kickPlayers("The region you are in was regenerated. Please rejoin");
+                        gc.unload(true);
+                    }
                 }
                 while (chunks.size() > 0)
                 {
@@ -439,6 +444,22 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             else return false;
         }
+        
+        public int kickPlayers(String msg)
+        {
+            int kicked = 0;
+            if (world.isChunkLoaded(this.x, this.z))
+            {
+                for (Entity ent:world.getChunkAt(this.x, this.z).getEntities())
+                    if (ent instanceof Player)
+                    {
+                        ((Player)ent).kickPlayer(msg);
+                        kicked++;
+                    }
+            }
+            return kicked;
+        }
+        
         public void load() { this.load(false); }
         public void load(boolean regenerateChunk)
         {
