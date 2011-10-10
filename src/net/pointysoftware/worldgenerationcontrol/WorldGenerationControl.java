@@ -106,9 +106,10 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     }
     public class GenerationRegion
     {
-        GenerationRegion(World world, GenerationSpeed speed, GenerationLighting lighting) { this._construct(world, speed, lighting, false); }
-        GenerationRegion(World world, GenerationSpeed speed, GenerationLighting lighting, boolean debug) { this._construct(world, speed, lighting, debug); }
-        private void _construct(World world, GenerationSpeed speed, GenerationLighting lighting, boolean debug)
+        GenerationRegion(World world, GenerationSpeed speed, GenerationLighting lighting) { this._construct(world, speed, lighting, false, false); }
+        GenerationRegion(World world, GenerationSpeed speed, GenerationLighting lighting, boolean debug) { this._construct(world, speed, lighting, debug, false); }
+        GenerationRegion(World world, GenerationSpeed speed, GenerationLighting lighting, boolean debug, boolean forceRegeneration) { this._construct(world, speed, lighting, debug, forceRegeneration); }
+        private void _construct(World world, GenerationSpeed speed, GenerationLighting lighting, boolean debug, boolean forceRegeneration)
         {
             this.debug = debug;
             this.totalregions = 0;
@@ -119,6 +120,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             this.pendingcleanup = new ArrayDeque<GenerationChunk>();
             this.queuedregions = new ArrayDeque<QueuedRegion>();
             this.starttime = 0;
+            this.forceregeneration = forceRegeneration;
             
             if (this.speed == GenerationSpeed.VERYFAST) regionsize = 32;
             else if (this.speed == GenerationSpeed.FAST) regionsize = 24;
@@ -198,7 +200,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 GenerationChunk c;
                 while ((c = next.getChunk(this.world)) != null)
                 {
-                    c.load();
+                    c.load(this.forceregeneration);
                     if (this.fixlighting == GenerationLighting.NONE)
                         pendingcleanup.push(c);
                     else
@@ -364,6 +366,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         private int regionsize;
         private long starttime;
         private boolean debug;
+        private boolean forceregeneration;
     }
     private class GenerationChunk
     {
@@ -426,7 +429,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             else return false;
         }
-        public void load()
+        public void load() { this.load(false); }
+        public void load(boolean regenerateChunk)
         {
             this.chunk = this.world.getChunkAt(this.x, this.z);
             if (!this.chunk.isLoaded())
@@ -435,7 +439,9 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 // to determine if it already existed
                 if (this.chunk.load(false))
                 {
-                    this.wascreated = false;
+                    if (regenerateChunk)
+                        this.world.regenerateChunk(this.x, this.z);
+                    this.wascreated = regenerateChunk;
                 }
                 else
                 {
