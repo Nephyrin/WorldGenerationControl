@@ -265,10 +265,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         // Returns number of chunks queued
         public int addCircularRegion(World world, int xCenter, int zCenter, int radius)
         {
-            xCenter = _toChunk(xCenter);
-            zCenter = _toChunk(zCenter);
-            radius = _toChunk(radius);
-            return this._addRegion(xCenter - radius, zCenter - radius, xCenter + radius, zCenter + radius, xCenter, zCenter, radius);
+            return this._addRegion(_toChunk(xCenter - radius), _toChunk(zCenter - radius), _toChunk(xCenter + radius), _toChunk(zCenter + radius), _toChunk(xCenter), _toChunk(zCenter), _toChunk(radius));
         }
         // Returns number of chunks queued
         public int addSquareRegion(World world, int xStart, int zStart, int xEnd, int zEnd)
