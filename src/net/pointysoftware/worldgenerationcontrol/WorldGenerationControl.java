@@ -211,6 +211,10 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 ArrayDeque<GenerationChunk> chunks = this.currentregion.getRemainingChunks();
                 if (this.forceregeneration)
                 {
+                    
+                    // Force unload the area first, so all blocks only get populators
+                    // run on them from their newly generated counterparts. Because the
+                    // regions overlap, we dont need to worry about the edges.
                     Iterator<GenerationChunk> i = chunks.iterator();
                     while (i.hasNext())
                     {
