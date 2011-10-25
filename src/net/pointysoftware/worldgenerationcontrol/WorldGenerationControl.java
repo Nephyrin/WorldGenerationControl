@@ -120,6 +120,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             this.pendinglighting = new ArrayDeque<GenerationChunk>();
             this.pendingcleanup = new ArrayDeque<GenerationChunk>();
             this.queuedregions = new ArrayDeque<QueuedRegion>();
+            this.currentregion = null;
             this.starttime = 0;
             this.forceregeneration = forceRegeneration;
             
@@ -165,10 +166,15 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 step = 3;
                 state = "Saving chunks";
             }
-            else if (queuedregions.size() > 0)
+            else if (currentregion != null)
             {
                 step = 1;
                 state = "Loading chunks";
+            }
+            else if (queuedregions.size() > 0)
+            {
+                step = 0;
+                state = "Analyzing area";
             }
             else
             {
@@ -194,14 +200,15 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             int region = totalregions - queuedregions.size() + (step == 1 ? 1 : 0);
             statusMsg(ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + " Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + ChatColor.GRAY + " :: " + state + queuedtext);
             
+            if (step == 0)
+            {
+                this.currentregion = queuedregions.pop();
+                this.currentregion.prepareChunks(this.world);
+            }
             if (step == 1)
             {
-                QueuedRegion next = queuedregions.pop();
                 // Load these chunks as our step
-                GenerationChunk c;
-                ArrayDeque<GenerationChunk> chunks = new ArrayDeque<GenerationChunk>();
-                while ((c = next.getChunk(this.world)) != null)
-                    chunks.push(c);
+                ArrayDeque<GenerationChunk> chunks = this.currentregion.getRemainingChunks();
                 if (this.forceregeneration)
                 {
                     Iterator<GenerationChunk> i = chunks.iterator();
@@ -214,7 +221,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 }
                 while (chunks.size() > 0)
                 {
-                    c = chunks.pop();
+                    GenerationChunk c = chunks.pop();
                     c.load(this.forceregeneration);
                     if (this.fixlighting == GenerationLighting.NONE)
                         pendingcleanup.push(c);
@@ -328,8 +335,10 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         private class QueuedRegion
         {
             private int xStart, zStart, xEnd, zEnd, xCenter, zCenter, radius, x, z;
+            private ArrayDeque<GenerationChunk> chunks;
             QueuedRegion(int xStart, int zStart, int xEnd, int zEnd, int xCenter, int zCenter, int radius)
             {
+                this.chunks = null;
                 this.x = xStart;
                 this.z = zStart;
                 this.xCenter = xCenter;
@@ -343,17 +352,16 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             
             // For iterating over chunks
             public void reset() { x = xStart; z = zStart; }
-            public GenerationChunk getChunk(World world)
+            public boolean chunksPrepared() { return this.chunks != null; }
+            public void prepareChunks(World world)
             {
-                GenerationChunk ret = null;
-                while (ret == null)
+                if (this.chunks != null) return;
+                this.chunks = new ArrayDeque<GenerationChunk>();
+                while (z <= zEnd)
                 {
-                    if (z > zEnd)
-                        return null;
-                    
                     // Skip chunks outside circle radius
                     if ((radius == 0) || (radius >= Math.sqrt((double)(Math.pow(Math.abs(x - xCenter),2) + Math.pow(Math.abs(z - zCenter),2)))))
-                        ret = new GenerationChunk(x, z, world);
+                        this.chunks.push(new GenerationChunk(x, z, world));
                     
                     x++;
                     if (x > xEnd)
@@ -362,9 +370,23 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                         z++;
                     }
                 }
+            }
+            public GenerationChunk getChunk()
+            {
+                if (this.chunks == null || this.chunks.size() < 1) return null;
+                GenerationChunk ret = this.chunks.pop();
+                if (this.chunks.size() < 1); this.chunks = null;
+                return ret;
+            }
+            public ArrayDeque<GenerationChunk> getRemainingChunks()
+            {
+                if (this.chunks == null) return null;
+                ArrayDeque<GenerationChunk> ret = this.chunks;
+                this.chunks = null;
                 return ret;
             }
             
+            public int getNumRemainingChunks() { return this.chunks != null ? this.chunks.size() : 0; }
             // Chunks this represents
             public int getSize() { return (xEnd - xStart + 1) * (zEnd - zStart + 1); }
         }
@@ -379,6 +401,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         private long starttime;
         private boolean debug;
         private boolean forceregeneration;
+        private QueuedRegion currentregion;
     }
     private class GenerationChunk
     {
