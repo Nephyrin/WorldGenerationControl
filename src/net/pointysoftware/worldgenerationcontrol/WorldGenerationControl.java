@@ -696,9 +696,12 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             
             GenerationLighting lighting;
             String lightswitch = args.getSwitch("lighting");
-            if (lightswitch != null) lightswitch = lightswitch.toLowerCase();
+            if (lightswitch == null)
+                lightswitch = "normal";
+            else
+                lightswitch = lightswitch.toLowerCase();
             
-            if (lightswitch != null && !lightswitch.equals("none"))
+            if (!lightswitch.equals("none"))
             {
                 if (lightswitch.equals("extreme") || lightswitch.equals("force"))
                     lighting = GenerationLighting.EXTREME;
