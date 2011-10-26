@@ -120,8 +120,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             this.world = world;
             this.speed = speed;
             this.fixlighting = lighting;
-            this.pendinglighting = new ArrayDeque<GenerationChunk>();
-            this.pendingcleanup = new ArrayDeque<GenerationChunk>();
             this.queuedregions = new ArrayDeque<QueuedRegion>();
             this.starttime = 0;
             this.forceregeneration = forceRegeneration;
@@ -214,15 +212,22 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     gc.unload(true);
                 }
             }
-            while (chunks.size() > 0)
+            Iterator<GenerationChunk> iter = chunks.iterator();
+            while (iter.hasNext())
             {
-                GenerationChunk c = chunks.pop();
+                GenerationChunk c = iter.next();
                 c.load(this.forceregeneration);
-                if (this.fixlighting != GenerationLighting.NONE)
+            }
+            
+            //
+            // Lighting
+            //
+            if (this.fixlighting != GenerationLighting.NONE)
+            {
+                iter = chunks.iterator();
+                while (iter.hasNext())
                 {
-                    //
-                    // Fix lighting on chunks
-                    //
+                    GenerationChunk c = iter.next();
                     try
                     {
                         c.fixLighting(fixlighting == GenerationLighting.EXTREME);
@@ -231,20 +236,21 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     {
                         // ClassCastException, MethodNotFound exception, or even an error inside craftbukkit.
                         // Either way, stop lighting for this generation.
-                        if (e instanceof ClassCastException) statusMsg("Error: WorldGenerationControl only supports lighting on CraftBukkit due to Bukkit API limitations. Disabling lighting for this generation.");
-                        else statusMsg("Error: Failed to link to CraftBukkit to generate lighting (probably an unsupported minecraft version). Disabling lighting for this generation.");
+                        if (e instanceof ClassCastException)
+                            statusMsg("Error: WorldGenerationControl only supports lighting on CraftBukkit due to Bukkit API limitations. Disabling lighting for this generation.");
+                        else
+                            statusMsg("Error: Error in CraftBukkit while generating lighting (probably an unsupported minecraft version). Disabling lighting for this generation.");
                         this.fixlighting = GenerationLighting.NONE;
                     }
                 }
-                pendingcleanup.push(c);
             }
 
             //
             // Cleanup Chunks
             //
-            while (pendingcleanup.size() > 0)
+            while (chunks.size() > 0)
             {
-                pendingcleanup.pop().unload();
+                chunks.pop().unload();
             }
             
             if (debug)
@@ -354,7 +360,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             public int getSize() { return (xEnd - xStart + 1) * (zEnd - zStart + 1); }
         }
         
-        private ArrayDeque<GenerationChunk> pendinglighting, pendingcleanup;
         private ArrayDeque<QueuedRegion> queuedregions;
         private World world;
         private GenerationLighting fixlighting;
