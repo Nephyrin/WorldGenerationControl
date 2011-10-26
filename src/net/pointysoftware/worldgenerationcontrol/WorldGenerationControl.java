@@ -433,6 +433,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     // *very* simple class the parse arguments with quoting
     private class NiceArgsParseIntException extends Throwable
     {
+        private final static long serialVersionUID = -5360208863240437042L;
         private String argName, badValue;
         NiceArgsParseIntException(String argName, String badValue)
         {
@@ -444,6 +445,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     }
     private class NiceArgsParseException extends Throwable
     {
+        private final static long serialVersionUID = -1873367217076514922L;
         private String error;
         NiceArgsParseException(String error) { this.error = error; }
         public String getError() { return this.error; }
