@@ -54,6 +54,11 @@ import org.bukkit.command.CommandSender;
 
 import org.bukkit.scheduler.BukkitScheduler;
 
+// Does not require craftbukkit, but lighting wont be available
+// otherwise as Bukkit doesn't currently provide the right calls.
+// (Our old method was a hack that relied on CraftBukkit quirks anyway)
+import org.bukkit.craftbukkit.CraftChunk;
+
 public class WorldGenerationControl extends JavaPlugin implements Runnable
 {
     private final static String VERSION = "2.1";
@@ -245,8 +250,23 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     GenerationChunk x = pendinglighting.pop();
                     // Only light chunks that were made by us, unless a _EXISTING lighting option was specified
                     if (x.wasCreated() || fixlighting == GenerationLighting.EXTREME_EXISTING || fixlighting == GenerationLighting.NORMAL_EXISTING)
-                        // Chunks that don't need lighting dont count to the total
-                        if (x.fixLighting(fixlighting == GenerationLighting.EXTREME)) chunksPerTick--;
+                    {
+                        try
+                        {
+                            x.fixLighting();
+                        }
+                        catch (Exception e)
+                        {
+                            // ClassCastException, MethodNotFound exception, or even an error inside craftbukkit.
+                            // Either way, stop lighting for this generation.
+                            if (e instanceof ClassCastException) statusMsg("Error: WorldGenerationControl only supports lighting on CraftBukkit due to Bukkit API limitations. Disabling lighting for this generation.");
+                            else statusMsg("Error: Failed to link to CraftBukkit to generate lighting (probably an unsupported minecraft version). Disabling lighting for this generation.");
+                            this.fixlighting = GenerationLighting.NONE;
+                            this.pendingcleanup.addAll(pendinglighting);
+                            this.pendinglighting.clear();
+                        }
+                        chunksPerTick--;
+                    }
                     pendingcleanup.push(x);
                 }
             }
@@ -394,57 +414,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         public int getX() { return x; }
         public int getZ() { return z; }
         public boolean wasCreated() { return this.wascreated; }
-        // This references a lot of blocks, if calling this on a lot of chunks,
-        // a System.gc() afterwards might be necessary to prevent overhead errors.
-        public boolean fixLighting() { return this.fixLighting(false); }
-        public boolean fixLighting(boolean extreme)
-        {
-            // Don't run this step on chunks without all adjacent chunks loaded, or it will
-            // actually corrupt the lighting
-            if (this.chunk != null
-                && this.world.isChunkLoaded(this.x - 1, this.z)
-                && this.world.isChunkLoaded(this.x, this.z - 1)
-                && this.world.isChunkLoaded(this.x + 1, this.z)
-                && this.world.isChunkLoaded(this.x, this.z + 1)
-                && this.world.isChunkLoaded(this.x - 1, this.z + 1)
-                && this.world.isChunkLoaded(this.x + 1, this.z + 1)
-                && this.world.isChunkLoaded(this.x - 1, this.z - 1)
-                && this.world.isChunkLoaded(this.x + 1, this.z - 1))
-            {
-                // Only fast lighting is done if no living entities are near.
-                // The solution is to create a noble chicken, who will be destroyed
-                // after the updates have been forced.
-                // Note that if we *didnt* update lighting, it would be updated
-                // the first time a player wanders near anyway, this is just
-                // a hack to make it happen at generation time.
-                int worldHeight = this.world.getMaxHeight();
-                // Center of the chunk. ish. Don't think it matters as long as he's in the chunk.
-                // Since he's removed at the end of this function he doesn't live for a single tick,
-                // so it doesn't matter if this puts him in a solid object - he doesn't have time to suffocate.
-                LivingEntity bobthechicken = this.world.spawnCreature(this.chunk.getBlock(8, worldHeight - 1, 8).getLocation(), CreatureType.CHICKEN);
-                for (int bx = 0; bx < 16; bx++) for (int bz = 0; bz < 16; bz++) for (int by = extreme ? 0 : worldHeight - 1; by < worldHeight; by++)
-                {
-                    Block bl = this.chunk.getBlock(bx, by, bz);
-                    if (by == worldHeight - 1 || (extreme && bl.getLightLevel() < 15))
-                    {
-                        // All touched blocks have their state saved and re-applied
-                        BlockState s = bl.getState();
-                        // The way lighting works branches based on how far the skylight reaches down.
-                        // Thus by toggling the top block between solid and not, we force a lighting update
-                        // on this column of blocks.
-                        if (bl.isEmpty())
-                            bl.setType(Material.STONE);
-                        else
-                            bl.setType(Material.AIR);
-                        s.update(true);
-                    }
-                }
-                
-                bobthechicken.remove();
-                return true;
-            }
-            else return false;
-        }
         
         public int kickPlayers(String msg)
         {
@@ -459,6 +428,15 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     }
             }
             return kicked;
+        }
+        
+        // Try to call the craftbukkit lighting update.
+        // This will throw exceptions if: Server isn't craftbukkit, craftbukkit isn't the expected version, craftbukkit has an error...
+        // *catch exceptions* if you don't want to assume we're running on compatible craftbukkit.
+        public void fixLighting()
+        {
+            if (this.chunk == null) return;
+            ((CraftChunk)this.chunk).getHandle().h();
         }
         
         public void load() { this.load(false); }
