@@ -154,25 +154,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             if (queued == -1)
                 queuedtext = ChatColor.DARK_GRAY + " {" + ChatColor.DARK_RED + "shutdown scheduled" + ChatColor.DARK_GRAY + "}";
             
-            String state;
             long stime = debug ? System.nanoTime() : 0;
-            int step;
-            if (pendinglighting.size() > 0)
-            {
-                step = 2;
-                state = "Generating lighting";
-            }
-            else if (pendingcleanup.size() > 0)
-            {
-                step = 3;
-                state = "Saving chunks";
-            }
-            else if (queuedregions.size() > 0)
-            {
-                step = 1;
-                state = "Loading chunks";
-            }
-            else
+            if (queuedregions.size() == 0)
             {
                 // Generation complete
                 long millis = (System.nanoTime() - this.starttime) / 1000000;
@@ -190,64 +173,45 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             
             // Status message
-            double lightingpct = (double)pendinglighting.size() / (this.regionsize * this.regionsize);
             // Assumes lighting is 92% of each chunk's processing, a rough estimate based on timing a generation on my system
-            double pct = 1 - ((double)queuedregions.size() + 0.92 * lightingpct) / totalregions;
-            int region = totalregions - queuedregions.size() + (step == 1 ? 1 : 0);
-            statusMsg(ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + " Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + ChatColor.GRAY + " :: " + state + queuedtext);
+            double pct = 1 - (double)queuedregions.size() / totalregions;
+            int region = totalregions - queuedregions.size() + 1;
+            statusMsg(ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + " Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + queuedtext);
             
-            if (step == 1)
+            //
+            // Load Chunks
+            //
+            QueuedRegion next = queuedregions.pop();
+            GenerationChunk c;
+            ArrayDeque<GenerationChunk> chunks = new ArrayDeque<GenerationChunk>();
+            while ((c = next.getChunk(this.world)) != null)
+                chunks.push(c);
+            if (this.forceregeneration)
             {
-                QueuedRegion next = queuedregions.pop();
-                // Load these chunks as our step
-                GenerationChunk c;
-                ArrayDeque<GenerationChunk> chunks = new ArrayDeque<GenerationChunk>();
-                while ((c = next.getChunk(this.world)) != null)
-                    chunks.push(c);
-                if (this.forceregeneration)
+                
+                // Force unload the area first, so all blocks only get populators
+                // run on them from their newly generated counterparts. Because the
+                // regions overlap, we dont need to worry about the edges.
+                Iterator<GenerationChunk> i = chunks.iterator();
+                while (i.hasNext())
                 {
-                    
-                    // Force unload the area first, so all blocks only get populators
-                    // run on them from their newly generated counterparts. Because the
-                    // regions overlap, we dont need to worry about the edges.
-                    Iterator<GenerationChunk> i = chunks.iterator();
-                    while (i.hasNext())
-                    {
-                        GenerationChunk gc = i.next();
-                        gc.kickPlayers("The region you are in was regenerated. Please rejoin");
-                        gc.unload(true);
-                    }
-                }
-                while (chunks.size() > 0)
-                {
-                    c = chunks.pop();
-                    c.load(this.forceregeneration);
-                    if (this.fixlighting == GenerationLighting.NONE)
-                        pendingcleanup.push(c);
-                    else
-                        pendinglighting.push(c);
+                    GenerationChunk gc = i.next();
+                    gc.kickPlayers("The region you are in was regenerated. Please rejoin");
+                    gc.unload(true);
                 }
             }
-            else if (step == 2)
+            while (chunks.size() > 0)
             {
-                int chunksPerTick;
-                if (speed == GenerationSpeed.VERYFAST)
-                    chunksPerTick = fixlighting == GenerationLighting.EXTREME ? 12 : 60;
-                if (speed == GenerationSpeed.FAST)
-                    chunksPerTick = fixlighting == GenerationLighting.EXTREME ? 5 : 30;
-                else if (speed == GenerationSpeed.SLOW)
-                    chunksPerTick = fixlighting == GenerationLighting.EXTREME ? 1 : 3;
-                else if (speed == GenerationSpeed.VERYSLOW)
-                    chunksPerTick = 1;
-                else
-                    chunksPerTick = fixlighting == GenerationLighting.EXTREME ? 2 : 5;
-                // Run lighting step
-                while (chunksPerTick > 0 && pendinglighting.size() > 0)
+                c = chunks.pop();
+                c.load(this.forceregeneration);
+                if (this.fixlighting != GenerationLighting.NONE)
                 {
-                    GenerationChunk x = pendinglighting.pop();
+                    //
+                    // Fix lighting on chunks
+                    //
                     try
                     {
-                        x.fixLighting(fixlighting == GenerationLighting.EXTREME);
+                        c.fixLighting(fixlighting == GenerationLighting.EXTREME);
                     }
                     catch (Exception e)
                     {
@@ -256,21 +220,17 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                         if (e instanceof ClassCastException) statusMsg("Error: WorldGenerationControl only supports lighting on CraftBukkit due to Bukkit API limitations. Disabling lighting for this generation.");
                         else statusMsg("Error: Failed to link to CraftBukkit to generate lighting (probably an unsupported minecraft version). Disabling lighting for this generation.");
                         this.fixlighting = GenerationLighting.NONE;
-                        this.pendingcleanup.addAll(pendinglighting);
-                        this.pendinglighting.clear();
                     }
-                    chunksPerTick--;
-                    pendingcleanup.push(x);
                 }
+                pendingcleanup.push(c);
             }
-            else if (step == 3)
+
+            //
+            // Cleanup Chunks
+            //
+            while (pendingcleanup.size() > 0)
             {
-                Iterator<GenerationChunk> cleaner = pendingcleanup.iterator();
-                while (cleaner.hasNext())
-                {
-                    cleaner.next().unload();
-                    cleaner.remove();
-                }
+                pendingcleanup.pop().unload();
             }
             
             if (debug)
