@@ -64,39 +64,29 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     private final static String VERSION = "2.2";
     public enum GenerationSpeed
     {
-        // Do everything on the same tick, locking up
-        // the server until the generation is complete.
+        // Only pause two ticks between regions, unplayable
+        // lag, but gets the job done quickest.
         ALLATONCE,
-        // Split up region loading and lighting fixes,
-        // processing in ticks. Very laggy, but doesn't
-        // freeze the server.
+        // Do a lot of processing on 3s intervals. Very laggy
+        // even on good systems.
         VERYFAST,
-        // Process way smaller regions and way less
-        // lighting per tick. Laggy, but playable.
+        // Less processing on 3s intervals, fairly laggy.
         FAST,
-        // Process even smaller regions and even less
-        // lighting per tick. Causes mild to moderate
-        // lag.
+        // Even less processing. Mild lag.
         NORMAL,
-        // even smaller regions, less lag
+        // Less - little lag
         SLOW,
         // tiny regions, very minimal lag, will
-        // take forever.
+        // take *forever*.
         VERYSLOW
     }
     public enum GenerationLighting
     {
-        // Force update every chunk without
-        // fullbright lighting, completely
-        // recalculating all lighting in the
-        // area. This will take 3x longer
-        // than the rest of the generation
-        // combined...
+        // Force recalculate lighting on all chunks
+        // we pass over
         EXTREME,
-        // Force update all lighting by toggling
-        // skyblocks. This will easily double
-        // generation times, but give you proper
-        // lighting on generated chunks
+        // Update unprocessed lighting on chunks we
+        // pass over
         NORMAL,
         // Don't force lighting. Generated areas
         // will have invalid lighting until a
