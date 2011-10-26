@@ -183,9 +183,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             //
             QueuedRegion next = queuedregions.pop();
             GenerationChunk c;
-            ArrayDeque<GenerationChunk> chunks = new ArrayDeque<GenerationChunk>();
-            while ((c = next.getChunk(this.world)) != null)
-                chunks.push(c);
+            ArrayDeque<GenerationChunk> chunks = next.getChunks(this.world);
             if (this.forceregeneration)
             {
                 
@@ -304,11 +302,9 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         
         private class QueuedRegion
         {
-            private int xStart, zStart, xEnd, zEnd, xCenter, zCenter, radius, x, z;
+            private int xStart, zStart, xEnd, zEnd, xCenter, zCenter, radius;
             QueuedRegion(int xStart, int zStart, int xEnd, int zEnd, int xCenter, int zCenter, int radius)
             {
-                this.x = xStart;
-                this.z = zStart;
                 this.xCenter = xCenter;
                 this.zCenter = zCenter;
                 this.xStart = xStart;
@@ -318,19 +314,15 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 this.radius = radius;
             }
             
-            // For iterating over chunks
-            public void reset() { x = xStart; z = zStart; }
-            public GenerationChunk getChunk(World world)
+            public ArrayDeque<GenerationChunk> getChunks(World world)
             {
-                GenerationChunk ret = null;
-                while (ret == null)
+                ArrayDeque<GenerationChunk> ret = new ArrayDeque<GenerationChunk>();
+                int x = xStart, z = zStart;
+                while (z <= zEnd)
                 {
-                    if (z > zEnd)
-                        return null;
-                    
                     // Skip chunks outside circle radius
-                    if ((radius == 0) || (radius >= Math.sqrt((double)(Math.pow(Math.abs(x - xCenter),2) + Math.pow(Math.abs(z - zCenter),2)))))
-                        ret = new GenerationChunk(x, z, world);
+                    if ((radius == 0) || (radius >= Math.sqrt((Math.pow(Math.abs(x - xCenter),2) + Math.pow(Math.abs(z - zCenter),2)))))
+                        ret.push(new GenerationChunk(x, z, world));
                     
                     x++;
                     if (x > xEnd)
