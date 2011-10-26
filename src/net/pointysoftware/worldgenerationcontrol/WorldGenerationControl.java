@@ -190,8 +190,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 if (this.lastnag + 300000000000L < now)
                 {
                     this.lastnag = System.nanoTime();
+                    statusMsg(prefix + "Paused while players are present" + queuedtext);
                 }
-                statusMsg(prefix + "Paused while players are present" + queuedtext);
                 return false;
             }
             
