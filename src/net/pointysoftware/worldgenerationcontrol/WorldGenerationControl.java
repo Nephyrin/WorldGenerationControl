@@ -86,21 +86,18 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     }
     public enum GenerationLighting
     {
-        // EXISTING ones specify that we should
-        // relight existing chunks in the region as well
-        
         // Force update every chunk without
         // fullbright lighting, completely
         // recalculating all lighting in the
         // area. This will take 3x longer
         // than the rest of the generation
         // combined...
-        EXTREME, EXTREME_EXISTING,
+        EXTREME,
         // Force update all lighting by toggling
         // skyblocks. This will easily double
         // generation times, but give you proper
         // lighting on generated chunks
-        NORMAL, NORMAL_EXISTING,
+        NORMAL,
         // Don't force lighting. Generated areas
         // will have invalid lighting until a
         // player wanders near them. This is only
@@ -248,25 +245,21 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 while (chunksPerTick > 0 && pendinglighting.size() > 0)
                 {
                     GenerationChunk x = pendinglighting.pop();
-                    // Only light chunks that were made by us, unless a _EXISTING lighting option was specified
-                    if (x.wasCreated() || fixlighting == GenerationLighting.EXTREME_EXISTING || fixlighting == GenerationLighting.NORMAL_EXISTING)
+                    try
                     {
-                        try
-                        {
-                            x.fixLighting(fixlighting == GenerationLighting.EXTREME || fixlighting == GenerationLighting.EXTREME_EXISTING);
-                        }
-                        catch (Exception e)
-                        {
-                            // ClassCastException, MethodNotFound exception, or even an error inside craftbukkit.
-                            // Either way, stop lighting for this generation.
-                            if (e instanceof ClassCastException) statusMsg("Error: WorldGenerationControl only supports lighting on CraftBukkit due to Bukkit API limitations. Disabling lighting for this generation.");
-                            else statusMsg("Error: Failed to link to CraftBukkit to generate lighting (probably an unsupported minecraft version). Disabling lighting for this generation.");
-                            this.fixlighting = GenerationLighting.NONE;
-                            this.pendingcleanup.addAll(pendinglighting);
-                            this.pendinglighting.clear();
-                        }
-                        chunksPerTick--;
+                        x.fixLighting(fixlighting == GenerationLighting.EXTREME);
                     }
+                    catch (Exception e)
+                    {
+                        // ClassCastException, MethodNotFound exception, or even an error inside craftbukkit.
+                        // Either way, stop lighting for this generation.
+                        if (e instanceof ClassCastException) statusMsg("Error: WorldGenerationControl only supports lighting on CraftBukkit due to Bukkit API limitations. Disabling lighting for this generation.");
+                        else statusMsg("Error: Failed to link to CraftBukkit to generate lighting (probably an unsupported minecraft version). Disabling lighting for this generation.");
+                        this.fixlighting = GenerationLighting.NONE;
+                        this.pendingcleanup.addAll(pendinglighting);
+                        this.pendinglighting.clear();
+                    }
+                    chunksPerTick--;
                     pendingcleanup.push(x);
                 }
             }
@@ -731,17 +724,14 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             
             GenerationLighting lighting;
             String lightswitch = args.getSwitch("lighting");
-            boolean lightexisting = args.getSwitch("lightexisting") != null;
             if (lightswitch != null) lightswitch = lightswitch.toLowerCase();
-            
-            if (lightexisting && lightswitch == null) lightswitch = "normal"; // /lightexisting implies /light
             
             if (lightswitch != null && !lightswitch.equals("none"))
             {
                 if (lightswitch.equals("extreme") || lightswitch.equals("force"))
-                    lighting = lightexisting ? GenerationLighting.EXTREME_EXISTING : GenerationLighting.EXTREME;
+                    lighting = GenerationLighting.EXTREME;
                 else if (lightswitch.equals("true") || lightswitch.equals("normal"))
-                    lighting = lightexisting ? GenerationLighting.NORMAL_EXISTING : GenerationLighting.NORMAL;
+                    lighting = GenerationLighting.NORMAL;
                 else
                 {
                     statusMsg("Invalid lighting mode \""+lightswitch+"\"");
