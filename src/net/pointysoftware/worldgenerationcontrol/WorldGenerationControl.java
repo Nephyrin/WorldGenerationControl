@@ -738,7 +738,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             
             if (lightswitch != null && !lightswitch.equals("none"))
             {
-                if (lightswitch.equals("extreme"))
+                if (lightswitch.equals("extreme") || lightswitch.equals("force"))
                     lighting = lightexisting ? GenerationLighting.EXTREME_EXISTING : GenerationLighting.EXTREME;
                 else if (lightswitch.equals("true") || lightswitch.equals("normal"))
                     lighting = lightexisting ? GenerationLighting.NORMAL_EXISTING : GenerationLighting.NORMAL;
