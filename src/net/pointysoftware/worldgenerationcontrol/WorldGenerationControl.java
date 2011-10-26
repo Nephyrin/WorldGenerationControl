@@ -154,6 +154,11 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             if (queued == -1)
                 queuedtext = ChatColor.DARK_GRAY + " {" + ChatColor.DARK_RED + "shutdown scheduled" + ChatColor.DARK_GRAY + "}";
             
+            // Get next region
+            ArrayDeque<GenerationChunk> chunks = null;
+            while (queuedregions.size() > 0 && chunks == null)
+                queuedregions.pop().getChunks();
+            
             long stime = debug ? System.nanoTime() : 0;
             if (queuedregions.size() == 0)
             {
@@ -181,9 +186,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             //
             // Load Chunks
             //
-            QueuedRegion next = queuedregions.pop();
-            GenerationChunk c;
-            ArrayDeque<GenerationChunk> chunks = next.getChunks(this.world);
             if (this.forceregeneration)
             {
                 
@@ -200,7 +202,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             while (chunks.size() > 0)
             {
-                c = chunks.pop();
+                GenerationChunk c = chunks.pop();
                 c.load(this.forceregeneration);
                 if (this.fixlighting != GenerationLighting.NONE)
                 {
@@ -331,7 +333,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                         z++;
                     }
                 }
-                return ret;
+                return ret.size() > 0 ? ret : null;
             }
             
             // Chunks this represents
