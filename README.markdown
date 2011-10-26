@@ -1,7 +1,8 @@
-WorldGenerationControl 2.1
+WorldGenerationControl 2.2
 =================
 Formerly ForceGenChunks
-*Which is a confusing ass name so I changed it*
+
+*Which is a dumb name so I changed it*
 
 This is a very simple plugin to allow you to pre-generate a region of your world. It does not affect already generated
 regions. As of 2.0, it can also repair lighting of existing regions.
@@ -13,15 +14,19 @@ Features
 - Various speed settings to control lag vs generation time
 - Works on a live server
 - Doesn't lock up the server (unless you use the /allAtOnce option)
-- Low ram usage, works on servers with 1gig of memory.
+- Low ram usage, works on servers with 1gig of memory. (!! Except in /fast and /veryfast modes due to a CraftBukkit bug,
+  see Bugs/Quirks below)
 - Generates trees & ore, not just land
 - Can generate valid lighting
 - Can force regenerate lighting on existing chunks, to fix light issues.
-- Bugs/Quirks
-- Generating land and light take lots of CPU - nothing the plugin can do to prevent that! If you don't want to lag a
+
+Bugs/Quirks
+-----------------
+- Recent builds of CraftBukkit will eat up a lot of ram on big generations on /fast and /veryfast modes.
+  I have proposed a fix for this bug [here](https://github.com/Bukkit/CraftBukkit/pull/501), but until the Bukkit team
+  addresses this, users with lower ram limitations may wish to use /slow modes or consider applying that patch.
+- Generating land takes a lot of CPU - nothing the plugin can do to prevent that! If you don't want to lag a
   live server, use the /slow or /veryslow modes.
-- Generated regions wont have proper lighting until a player explores them, unless you specify the /lighting option,
-  which is very slow. See Notes on Lighting below.
 
 Commands
 -----------------
@@ -51,20 +56,26 @@ All commands can have options applied to them like so:
 
 Options are not case sensitive. The available options are:
 
-- /allAtOnce - Don't pause between steps, generate everything requested all at once. This will lock up the server until
-  the generation completes, but will get the job done quickest.
+- /allAtOnce - Don't pause between steps, generate everything requested all at once. This will *heavily* lag the server
+  until the generation completes, but will get the job done quickest.
 - /veryFast, /fast, /slow, /verySlow - Adjust speed. Has no effect if /allAtOnce specified. Normally the plugin will
-  cause mild lag while generating usually doing around 500ms of work per three seconds. Raising the speed with fast or
-  veryfast will cause more lag but speed up the generation, slow or veryslow will reduce lag while increasing generation
-  times. Veryfast will cause a lot of lag. Veryslow will cause almost no lag, but will take something like 5x longer.
-- /lighting - Generate lighting for the loaded chunks. See **Notes on Lighting** below!
-- /lighting:extreme - Generate lighting for the loaded chunks using a much more aggressive method. This is primarily
-  useful in conjunction with /lightExisting to repair glitched light areas.
-- /lightExisting - Also generate lighting for already-generated chunks in the specified region. Useful for fixing areas
-  with corrupt lighting, or lighting areas that haven't been explored yet.
+  cause mild lag while generating usually doing around 700ms of work per three seconds (depending on the server CPU).
+  Raising the speed with fast or veryfast will cause more lag but speed up the generation, slow or veryslow will reduce
+  lag while increasing generation times. Veryfast will cause a lot of lag. Veryslow will cause almost no lag, but will
+  take something like 10x longer.
+- /lighting:none - Skip generating light data for loaded chunks. See **Notes on Lighting** below.
+- /lighting:force - Reset and regenerate lighting for all chunks we pass over, even if they already have lighting data.
+  Useful for fixing areas with corrupt lighting.
 - /verbose - Print detailed timing info while generating. Doubles the amount of spam the plugin prints!
 - /quitAfter - Shutdown the server once this (and any other pending generations) are complete. See the Using in a Script
   section below.
+- /onlyWhenEmpty - Only do generating when the server is empty. The plugin will pause generation and wait until players
+  leave, allowing you to generate lots of land without worrying at all about the extra CPU. You can use this in
+  conjunction with /allAtOnce to have the server use 100% when it is empty towards generating land, without causing any
+  lag when players are online.
+- /destroyAndRegenerateArea - As the name says, this will **delete and destroy all land** in the area given, generating
+  new land instead. I cannot stress enough how this will **delete your world** (or the specified area of it at least),
+  so please understand what you're doing and make backups!
 
 Permissions
 -----------------
@@ -102,21 +113,17 @@ cause lag.
 Notes on Lighting
 -----------------
 
-By default, the plugin wont generate lighting info for the generated regions. This is also the default for minecraft -
-chunks are only lit for the first time when a player wanders near, so normally this is not a problem.
+By default, minecraft only generates lighting info for a chunk when it is first approached by a player. This is fine,
+but if you want to generate an external map with something like Minecraft Overviewer, it means the areas players haven't
+visited will only have 'fast' lighting, with pitch black shadows.
 
-However, if you're generating world maps with Minecraft Overviewer or something similar that includes shadows, OR if you
-want to save the server CPU power later when players are exploring, you may want the new regions to be lit properly. For
-that, specifying /lighting will cause valid light to be generated. However, due to the way the server works,
-forced-lighting takes way more cpu power than just generating the land! So if generation time is a concern, think twice.
+To fix this, by default, WorldGenerationControl forces new chunks to have lighting info, as if a player were nearby.
+This shouldn't cause any problems, but takes about 8% more CPU-time. You can skip this step with /lighting:none -- the
+chunks will still be lit when a player wanders by, so this is only an issue for external tools as mentioned above.
 
-There is also /lightExisting, which will re-calculate the lighting on existing chunks in the specified area (in addition
-to new chunks). This is useful for lighting chunks that were generated previously without lighting, or fixing chunks
-with buggy lighting.
-
-Finally, there is /lighting:extreme. This takes a more aggressive approach to forcing the lighting of a chunk, and is
-primarily useful in conjunction with /lightExisting to fix areas with buggy/bad lighting that /lighting alone wont
-tackle. This will make lighting take twice as long, so only use it if you need it.
+There is also /lighting:force, which will force-generate lighting for all chunks it passes over (even those already
+generated and with proper lighting), which is useful for making minecraft recalculate the lighting in areas with
+glitched shadows.
 
 Using in a Script
 -----------------
@@ -129,7 +136,7 @@ out when EOF is encountered in input, the proper way to do this would be somethi
 
 Download
 -----------------
-https://github.com/downloads/Nephyrin/WorldGenerationControl/WorldGenerationControl_v2.1.jar
+https://github.com/downloads/Nephyrin/WorldGenerationControl/WorldGenerationControl_v2.2.jar
 
 Source
 -----------------
@@ -137,6 +144,20 @@ https://github.com/Nephyrin/WorldGenerationControl
 
 ChangeLog
 -----------------
+- 2.2
+    - Lighting now talks directly to CraftBukkit and is now approximately 115 times faster. Yep.
+    - Because lighting has gone from taking up 92% of processing time to a trivial amount, the plugin no longer
+      splits lighting/generating/saving into separate steps.
+    - Because lighting is now very fast, /lighting is now the default. It can still be disabled with /lighting:none
+    - /lighting:extreme is now named /lighting:force, and only eats a little bit more CPU.
+    - Added /destroyAndRegenerateArea - which regenerates all chunks in the region. Beware!
+    - Removed /lightExisting, lighting is now only done as-needed either way, and /lighting:force can be used
+      to try and fix corrupt light areas.
+    - Fixed /gencircle being centered incorrectly when called by a player without coordinates
+    - Improved accuracy of some fuzzy math logic to ensure only requested areas are generated
+    - Added /onlyWhenEmpty - this causes the plugin to only do its work when the server is empty, pausing and resuming
+      as needed when players join/leave.
+    - Minor speed/overhead improvements
 - 2.1
     - Fixed issue with /allAtOnce being too aggressive on lighting, causing memory issues on low-memory servers.
     - allAtOnce mode now returns into the server briefly between ticks, allowing other commands (such as /cancelgen) to
