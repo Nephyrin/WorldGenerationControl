@@ -157,7 +157,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             // Get next region
             ArrayDeque<GenerationChunk> chunks = null;
             while (queuedregions.size() > 0 && chunks == null)
-                queuedregions.pop().getChunks();
+                queuedregions.pop().getChunks(this.world);
             
             long stime = debug ? System.nanoTime() : 0;
             if (queuedregions.size() == 0)
