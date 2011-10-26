@@ -172,7 +172,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 }
                 return false;
             }
-            statusMsg(prefix + ChatColor.GRAY + " Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + queuedtext);
+            statusMsg(prefix + ChatColor.GRAY + "Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + queuedtext);
             
             // Get next region
             ArrayDeque<GenerationChunk> chunks = null;
@@ -741,7 +741,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             else
             {
-                statusMsg("Generation canceled by " + (sender instanceof Player ? ("player " + ChatColor.GOLD + ((Player)sender).getName() + ChatColor.WHITE) : "the console") + ", waiting for current section to finish.");
+                statusMsg("Generation canceled by " + (sender instanceof Player ? ("player " + ChatColor.GOLD + ((Player)sender).getName() + ChatColor.WHITE) : "the console"));
                 this.cancelGeneration();
             }
         }
