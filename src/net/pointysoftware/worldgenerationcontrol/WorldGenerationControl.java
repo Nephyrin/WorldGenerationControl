@@ -151,11 +151,28 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             if (this.starttime == 0)
                 this.starttime = System.nanoTime();
             
+            
+            // Status message
             String queuedtext = "";
             if (queued > 0)
                 queuedtext = ChatColor.DARK_GRAY + " {" + ChatColor.GRAY + queued + " generations in queue" + ChatColor.DARK_GRAY + "}";
             if (queued == -1)
                 queuedtext = ChatColor.DARK_GRAY + " {" + ChatColor.DARK_RED + "shutdown scheduled" + ChatColor.DARK_GRAY + "}";
+            
+            double pct = 1 - (double)queuedregions.size() / totalregions;
+            int region = totalregions - queuedregions.size() + 1;
+            String prefix = ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + " ";
+            if (this.onlywhenempty && getServer().getOnlinePlayers().length > 0)
+            {
+                long now = System.nanoTime();
+                if (this.lastnag + 300000000000L < now)
+                {
+                    this.lastnag = System.nanoTime();
+                    statusMsg(prefix + "Paused while players are present" + queuedtext);
+                }
+                return false;
+            }
+            statusMsg(prefix + ChatColor.GRAY + " Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + queuedtext);
             
             // Get next region
             ArrayDeque<GenerationChunk> chunks = null;
@@ -179,23 +196,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 statusMsg("Generation complete in " + took + ". " + (queued > 0 ? "Loading next generation job" : "Have a nice day!") + queuedtext);
                 return true;
             }
-            
-            // Status message
-            double pct = 1 - (double)queuedregions.size() / totalregions;
-            int region = totalregions - queuedregions.size();
-            String prefix = ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + " ";
-            if (this.onlywhenempty && getServer().getOnlinePlayers().length > 0)
-            {
-                long now = System.nanoTime();
-                if (this.lastnag + 300000000000L < now)
-                {
-                    this.lastnag = System.nanoTime();
-                    statusMsg(prefix + "Paused while players are present" + queuedtext);
-                }
-                return false;
-            }
-            
-            statusMsg(prefix + ChatColor.GRAY + " Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + queuedtext);
             
             //
             // Load Chunks
