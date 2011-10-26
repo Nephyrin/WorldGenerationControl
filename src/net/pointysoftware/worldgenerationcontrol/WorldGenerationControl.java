@@ -253,7 +253,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     {
                         try
                         {
-                            x.fixLighting();
+                            x.fixLighting(fixlighting == GenerationLighting.EXTREME || fixlighting == GenerationLighting.EXTREME_EXISTING);
                         }
                         catch (Exception e)
                         {
@@ -414,7 +414,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         public int getX() { return x; }
         public int getZ() { return z; }
         public boolean wasCreated() { return this.wascreated; }
-        
         public int kickPlayers(String msg)
         {
             int kicked = 0;
@@ -433,9 +432,22 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         // Try to call the craftbukkit lighting update.
         // This will throw exceptions if: Server isn't craftbukkit, craftbukkit isn't the expected version, craftbukkit has an error...
         // *catch exceptions* if you don't want to assume we're running on compatible craftbukkit.
-        public void fixLighting()
+        public void fixLighting(boolean force)
         {
             if (this.chunk == null) return;
+            // initLighting 'resets' the lighting for a chunk, doing fast lighting on everything and marking them all as needing full lighting
+            // Don't do it on chunks without their adjacents loaded, since the h() will then fail to fix them and we're actually breaking
+            // potentially good lighting.
+            if (force && this.world.isChunkLoaded(x - 1, z - 1) &&
+                         this.world.isChunkLoaded(x - 1, z) &&
+                         this.world.isChunkLoaded(x - 1, z + 1) &&
+                         this.world.isChunkLoaded(x, z - 1) &&
+                         this.world.isChunkLoaded(x, z + 1) &&
+                         this.world.isChunkLoaded(x + 1, z - 1) &&
+                         this.world.isChunkLoaded(x + 1, z) &&
+                         this.world.isChunkLoaded(x + 1, z + 1))
+                ((CraftChunk)this.chunk).getHandle().initLighting();
+            // h() calls i() (private) which relights all x/z columns marked as needing full lighting
             ((CraftChunk)this.chunk).getHandle().h();
         }
         
