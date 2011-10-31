@@ -240,6 +240,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 }
                 return false;
             }
+            else
+                this.lastnag = 0;
             
             statusMsg(prefix + ChatColor.GRAY + "Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + queuedtext);
             
