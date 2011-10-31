@@ -1,4 +1,4 @@
-WorldGenerationControl 2.2
+WorldGenerationControl 2.3
 =================
 Formerly ForceGenChunks
 
@@ -14,17 +14,13 @@ Features
 - Various speed settings to control lag vs generation time
 - Works on a live server
 - Doesn't lock up the server (unless you use the /allAtOnce option)
-- Low ram usage, works on servers with 1gig of memory. (!! Except in /fast and /veryfast modes due to a CraftBukkit bug,
-  see Bugs/Quirks below)
+- Low ram usage, works fine on servers with 1gig of memory.
 - Generates trees & ore, not just land
 - Can generate valid lighting
 - Can force regenerate lighting on existing chunks, to fix light issues.
 
 Bugs/Quirks
 -----------------
-- Recent builds of CraftBukkit will eat up a lot of ram on big generations on /fast and /veryfast modes.
-  I have proposed a fix for this bug [here](https://github.com/Bukkit/CraftBukkit/pull/501), but until the Bukkit team
-  addresses this, users with lower ram limitations may wish to use /slow modes or consider applying that patch.
 - Generating land takes a lot of CPU - nothing the plugin can do to prevent that! If you don't want to lag a
   live server, use the /slow or /veryslow modes.
 
@@ -136,7 +132,7 @@ out when EOF is encountered in input, the proper way to do this would be somethi
 
 Download
 -----------------
-https://github.com/downloads/Nephyrin/WorldGenerationControl/WorldGenerationControl_v2.2.jar
+https://github.com/downloads/Nephyrin/WorldGenerationControl/WorldGenerationControl_v2.3.jar
 
 Source
 -----------------
@@ -144,6 +140,11 @@ https://github.com/Nephyrin/WorldGenerationControl
 
 ChangeLog
 -----------------
+- 2.3 - Death to Memory Issues edition
+    - Includes a fix for CraftBukkit's poor NextTickList handling, allowing high generation speeds on low memory
+      servers
+    - Invokes the GC directly when running close to memory limits to prevent GC Overhead errors
+    - Takes a break if memory usage gets unacceptably high to let the server catch up.
 - 2.2
     - Lighting now talks directly to CraftBukkit and is now approximately 115 times faster. Yep.
     - Because lighting has gone from taking up 92% of processing time to a trivial amount, the plugin no longer

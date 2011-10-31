@@ -66,7 +66,7 @@ import org.bukkit.craftbukkit.CraftWorld;
 
 public class WorldGenerationControl extends JavaPlugin implements Runnable
 {
-    private final static String VERSION = "2.2";
+    private final static String VERSION = "2.3";
     public enum GenerationSpeed
     {
         // Only pause two ticks between regions, unplayable
