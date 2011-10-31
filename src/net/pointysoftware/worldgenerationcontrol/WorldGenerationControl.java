@@ -210,13 +210,14 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             double usedmem = ((double)(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / Runtime.getRuntime().maxMemory());
             if (usedmem > 0.80D)
             {
-                // Ensure we don't hit GC overhead limits in the 80-90% range
-                System.runFinalization();
-                System.gc();
-            }
-            if (usedmem > 0.90D)
-            {
-                nag = "Less than 10% free memory -- taking a break to let the server catch up";
+                if (this.speed == GenerationSpeed.ALLATONCE)
+                {
+                    // If we're going all at once, spend our time
+                    // waiting on ram invoking GC
+                    System.runFinalization();
+                    System.gc();
+                }
+                nag = "Less than 20% free memory -- taking a break to let the server catch up";
             }
             
             // Check for /onlyWhenEmpty
