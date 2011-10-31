@@ -21,10 +21,13 @@
 
 package net.pointysoftware.worldgenerationcontrol;
 
+import java.lang.reflect.Field;
+
 import java.util.logging.Logger;
 import java.util.Iterator;
 import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.TreeSet;
 import java.util.ArrayDeque;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
@@ -54,10 +57,12 @@ import org.bukkit.command.CommandSender;
 
 import org.bukkit.scheduler.BukkitScheduler;
 
-// Does not require craftbukkit, but lighting wont be available
+// Plugin *Does not* require craftbukkit, but lighting wont be available
 // otherwise as Bukkit doesn't currently provide the right calls.
 // (Our old method was a hack that relied on CraftBukkit quirks anyway)
 import org.bukkit.craftbukkit.CraftChunk;
+// This is used by checkCWTickList to work around a CW bug
+import org.bukkit.craftbukkit.CraftWorld;
 
 public class WorldGenerationControl extends JavaPlugin implements Runnable
 {
@@ -131,6 +136,57 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             this.queuedregions.clear();
         }
         
+        private int fixCWTickListLeak()
+        {
+            // See if this is CraftBukkit and we can fix the NextTickList leak
+            // otherwise it can mean lots of useless idle time while the server
+            // catches up slowly, see: https://github.com/Bukkit/CraftBukkit/pull/501
+            TreeSet set = null;
+            if (this.world instanceof CraftWorld)
+            {
+                Class cw;
+                try
+                {
+                    cw = ((CraftWorld)this.world).getHandle().getClass().forName("net.minecraft.server.World");
+                }
+                catch (ClassNotFoundException e) { return -1; }
+                Field fields[] = cw.getDeclaredFields();
+                for (int i = 0; i < fields.length; i++)
+                {
+                    // 1.9p5: TickList is private TreeSet K
+                    // 1.8.1: TickList is private TreeSet N
+                    // No other treesets in the world fields, so this is pretty safe.
+                    if (fields[i].getName() == "K" || fields[i].getName() == "N")
+                    {
+                        fields[i].setAccessible(true);
+                        Object f;
+                        try { f = fields[i].get(((CraftWorld)this.world).getHandle()); }
+                        catch (IllegalAccessException e) { continue; }
+                        if (f instanceof TreeSet)
+                        {
+                            set = (TreeSet)f;
+                            break;
+                        }
+                    }
+                }
+                if (set != null && set.size() > 500000)
+                {
+                    try
+                    {
+                        // Flush the list
+                        if (debug) statusMsg("-- Detected runaway NextTickList entries, a known CraftBukkit bug. Fixing.");
+                        while (((CraftWorld)this.world).getHandle().a(true));
+                    }
+                    catch(Exception e)
+                    {
+                        // Probably CB version mismatch.
+                        if (debug) statusMsg("-- ... Fix failed, unknown CraftBukkit version. Expect very high memory usage.");
+                    }
+                }
+            }
+            return (set == null) ? -1 : set.size();
+        }
+        
         // returns true if complete
         // queued is number of generations the plugin intends to run after this
         // or -1 if the plugin intends to shutdown the server after this!
@@ -139,6 +195,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             if (this.starttime == 0)
                 this.starttime = System.nanoTime();
             
+            // Check for the ticklist bug
+            int ticklistbug = this.fixCWTickListLeak();
             
             // Status message
             String queuedtext = "";
@@ -146,20 +204,42 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 queuedtext = ChatColor.DARK_GRAY + " {" + ChatColor.GRAY + queued + " generations in queue" + ChatColor.DARK_GRAY + "}";
             if (queued == -1)
                 queuedtext = ChatColor.DARK_GRAY + " {" + ChatColor.DARK_RED + "shutdown scheduled" + ChatColor.DARK_GRAY + "}";
+
+            // Check memory
+            String nag = null;
+            double usedmem = ((double)(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / Runtime.getRuntime().maxMemory());
+            if (usedmem > 0.80D)
+            {
+                // Ensure we don't hit GC overhead limits in the 80-90% range
+                System.runFinalization();
+                System.gc();
+            }
+            if (usedmem > 0.90D)
+            {
+                nag = "Less than 10% free memory -- taking a break to let the server catch up";
+            }
             
+            // Check for /onlyWhenEmpty
+            if (this.onlywhenempty && getServer().getOnlinePlayers().length > 0)
+                nag = "Paused while players are present";
+            
+            // Status message
             double pct = 1 - (double)queuedregions.size() / totalregions;
             int region = totalregions - queuedregions.size() + 1;
             String prefix = ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + String.format("%.2f", 100*pct) + "%" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + " ";
-            if (this.onlywhenempty && getServer().getOnlinePlayers().length > 0)
+            
+            if (nag != null)
             {
+                // Should bail out
                 long now = System.nanoTime();
                 if (this.lastnag + 300000000000L < now)
                 {
                     this.lastnag = System.nanoTime();
-                    statusMsg(prefix + "Paused while players are present" + queuedtext);
+                    statusMsg(prefix + nag + queuedtext);
                 }
                 return false;
             }
+            
             statusMsg(prefix + ChatColor.GRAY + "Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + queuedtext);
             
             // Get next region
@@ -244,7 +324,12 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             
             if (debug)
-                statusMsg("-- " + String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms elapsed. " + world.getLoadedChunks().length + " chunks now loaded");
+            {
+                String pctmem = String.format("%.2f", 100 * ((double)(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / Runtime.getRuntime().maxMemory())) + "%";
+                String elapsed = String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms";
+                String tickstr = ticklistbug == -1 ? "No CB ticklist found" : ("NextTickList at " + ticklistbug + " entries");
+                statusMsg("-- " + elapsed + " elapsed. " + world.getLoadedChunks().length + " chunks now loaded - " + pctmem + " memory in use - " + tickstr);
+            }
             
             return false;
         }
