@@ -172,26 +172,29 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             this.queuedregions.clear();
         }
         
-        private int fixCWTickListLeak()
+        private int fixCWTickListLeak() { return this.fixCWTickListLeak(false); }
+        private int fixCWTickListLeak(boolean force)
         {
+            if (ticklist == null) return -1;
             // See if this is CraftBukkit and we can fix the NextTickList leak
             // otherwise it can mean lots of useless idle time while the server
             // catches up slowly, see: https://github.com/Bukkit/CraftBukkit/pull/501
-            if (ticklist != null && ticklist.size() > 500000)
+            if (ticklist.size() > 200000 || (force && ticklist.size() > 0))
             {
                 try
                 {
                     // Flush the list
-                    if (debug) statusMsg("-- Detected runaway NextTickList entries, a known CraftBukkit bug. Fixing.");
-                    while (((CraftWorld)this.world).getHandle().a(true));
+                    if (debug) statusMsg("-- Forcing server to keep up on NextTickList (to prevent a known CB runaway-memory bug)");
+                    while (force ? ticklist.size() > 0 : ticklist.size() > 200000)
+                        ((CraftWorld)this.world).getHandle().a(true);
                 }
                 catch(Exception e)
                 {
                     // Probably CB version mismatch.
-                    if (debug) statusMsg("-- ... Fix failed, unknown CraftBukkit version. Expect very high memory usage.");
+                    if (debug) statusMsg("-- ... ^ Failed, unknown CraftBukkit version. Expect very high memory usage.");
                 }
             }
-            return (ticklist == null) ? -1 : ticklist.size();
+            return ticklist.size();
         }
         
         // returns true if complete
@@ -203,7 +206,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 this.starttime = System.nanoTime();
             
             // Check for the ticklist bug
-            int ticklistbug = this.fixCWTickListLeak();
+            // in allatonce mode aggressively nuke this list.
+            int ticklistbug = this.fixCWTickListLeak(this.speed == GenerationSpeed.ALLATONCE);
             
             // Status message
             String queuedtext = "";
@@ -219,8 +223,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             {
                 if (this.speed == GenerationSpeed.ALLATONCE)
                 {
-                    // If we're going all at once, spend our time
-                    // waiting on ram invoking GC
+                    // If we're going all at once, spend this
+                    // tick on GC
                     System.runFinalization();
                     System.gc();
                 }
@@ -343,7 +347,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             {
                 String pctmem = String.format("%.2f", 100 * ((double)(runtime.totalMemory() - runtime.freeMemory()) / runtime.maxMemory())) + "%";
                 String elapsed = String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms";
-                String tickstr = ticklistbug == -1 ? "No CB ticklist found" : ("NextTickList at " + ticklistbug + " entries");
+                // It'll always be 0 in allatonce mode since we force-clean it --v
+                String tickstr = this.speed != GenerationSpeed.ALLATONCE ? (ticklistbug == -1 ? "No CB ticklist found" : ("NextTickList at " + ticklistbug + " entries")) : "";
                 statusMsg("-- " + elapsed + " elapsed. " + world.getLoadedChunks().length + " chunks now loaded - " + pctmem + " memory in use - " + tickstr);
             }
             
