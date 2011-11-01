@@ -120,12 +120,14 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             this.forceregeneration = forceRegeneration;
             this.onlywhenempty = onlywhenempty;
             this.lastnag = 0;
+            this.forcesave = false;
             this.memwait = false;
+            this.iscraftbukkit = this.world instanceof CraftWorld;
             
             this.ticklist = null;
             // See if we can find a ticklist for this world
             // used in fixCWTickListLeak
-            if (this.world instanceof CraftWorld)
+            if (this.iscraftbukkit)
             {
                 Class cw;
                 try
@@ -164,6 +166,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             else if (this.speed == GenerationSpeed.VERYSLOW) regionsize = 6;
             else regionsize = 20;
         }
+        public void setForceSave(boolean v) { this.forcesave = v; }
         
         public boolean shouldRunAllAtOnce() { return this.speed == GenerationSpeed.ALLATONCE; }
         
@@ -340,6 +343,19 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             }
             
             int ticklistbug = this.fixCWTickListLeak(this.speed == GenerationSpeed.ALLATONCE);
+            if (this.forcesave)
+            {
+                try
+                {
+                    ((CraftWorld)this.world).getHandle().save(true, null);
+                    ((CraftWorld)this.world).getHandle().saveLevel();
+                }
+                catch (Exception e)
+                {
+                    statusMsg("Warning: Unrecognized CraftBukkit build, cannot force saving. Async chunk loader will slow things down!");
+                    this.forcesave = false;
+                }
+            }
             if (debug)
             {
                 String pctmem = String.format("%.2f", 100 * ((double)(runtime.totalMemory() - runtime.freeMemory()) / runtime.maxMemory())) + "%";
@@ -466,6 +482,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         private long lastnag;
         private TreeSet ticklist;
         private boolean memwait;
+        private boolean iscraftbukkit;
+        private boolean forcesave;
     }
     private class GenerationChunk
     {
