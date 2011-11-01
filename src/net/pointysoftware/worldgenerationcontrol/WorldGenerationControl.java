@@ -239,10 +239,13 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             // Check memory
             String nag = null;
             double pctusedmem = ((double)(runtime.totalMemory() - runtime.freeMemory()) / runtime.maxMemory());
+            // max - total memory is how much memory is allowed to be used but not allocated,
+            // freeMemory is amount of allocated memory not in use. So not yet allocated + allocated but free == total free
+            long freemem = runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory();
             // > 80% in use, or <200Megs free.
             // Until we have better incremental generation, each step needs at least 200megs to not
             // crash and burn.
-            if ((this.memwait && pctusedmem > 0.70D) || pctusedmem > 0.80D)
+            if ((this.memwait && pctusedmem > 0.70D) || pctusedmem > 0.80D || freemem < (200 * 1024 * 1024))
             {
                 if (this.speed == GenerationSpeed.ALLATONCE)
                 {
