@@ -1,4 +1,4 @@
-WorldGenerationControl 2.3
+WorldGenerationControl 2.4
 =================
 Formerly ForceGenChunks
 
@@ -23,6 +23,8 @@ Bugs/Quirks
 -----------------
 - Generating land takes a lot of CPU - nothing the plugin can do to prevent that! If you don't want to lag a
   live server, use the /slow or /veryslow modes.
+- Designed for servers with at least 1gig of memory allocated to them (-Xmx1024M). Servers with lower memory limits
+  may encounter heap exceptions. If you have less than 1gig of memory, try using /slow or /veryslow modes.
 
 Commands
 -----------------
@@ -52,13 +54,19 @@ All commands can have options applied to them like so:
 
 Options are not case sensitive. The available options are:
 
-- /allAtOnce - Don't pause between steps, generate everything requested all at once. This will *heavily* lag the server
-  until the generation completes, but will get the job done quickest.
+- /allAtOnce - Don't pause between steps, generate everything requested all at once. This will make the server basically
+  unusable until the generation completes, but get the job done fastest. Very useful in conjunction with /onlyWhenEmpty
 - /veryFast, /fast, /slow, /verySlow - Adjust speed. Has no effect if /allAtOnce specified. Normally the plugin will
   cause mild lag while generating usually doing around 700ms of work per three seconds (depending on the server CPU).
   Raising the speed with fast or veryfast will cause more lag but speed up the generation, slow or veryslow will reduce
   lag while increasing generation times. Veryfast will cause a lot of lag. Veryslow will cause almost no lag, but will
   take something like 10x longer.
+- /forceSave - Only affects CraftBukkit 1.9+ - 1.9 Has a new async chunk saver, which appears to be rate limited,
+  meaning it will not 'keep up' with fast generations. This option forces the chunks to be saved immediately, rather
+  than on a separate thread.
+  You should use this option if you notice the plugin spending a lot of time "waiting for the server to catch up" and
+  don't mind the minor increase in CPU usage caused by forcing it to keep up. It effectively disables the async chunk
+  saver for the duration of the generation. /allAtOnce mode will always use this option.
 - /lighting:none - Skip generating light data for loaded chunks. See **Notes on Lighting** below.
 - /lighting:force - Reset and regenerate lighting for all chunks we pass over, even if they already have lighting data.
   Useful for fixing areas with corrupt lighting.
@@ -106,6 +114,11 @@ with lighting!
 Would generate a 1000 block radius centered in MyWorld at 100x, 100z, using the veryslow speed setting so as not to
 cause lag.
 
+> /gencircle 10000 MyWorld 100 100 /allAtOnce /onlyWhenEmpty
+
+Would generate a HEUG circle centered at MyWorld 100,100 at max possible speed, but pause the generation when players
+join. Useful if you want your server to use 100% on generating when it would otherwise be idle.
+
 Notes on Lighting
 -----------------
 
@@ -128,11 +141,11 @@ The /quitAfter option lets this plugin be used as part of a script. For example,
 lot of random seeds to share with the community or post on /r/minecraft for delicious karma. Because bukkit/java freaks
 out when EOF is encountered in input, the proper way to do this would be something like:
 
-> echo "gencircle 1000 TestWorld 0 0 /allatonce /quitafter" | cat - /dev/full | java -jar craftbukkit-0.0.1-SNAPSHOT.jar
+> echo "gencircle 1000 TestWorld 0 0 /allatonce /quitafter" | cat - /dev/full | java -jar craftbukkit-0.0.1-SNAPSHOT.jar --nojline
 
 Download
 -----------------
-https://github.com/downloads/Nephyrin/WorldGenerationControl/WorldGenerationControl_v2.3.jar
+https://github.com/downloads/Nephyrin/WorldGenerationControl/WorldGenerationControl_v2.4.jar
 
 Source
 -----------------
@@ -140,6 +153,14 @@ https://github.com/Nephyrin/WorldGenerationControl
 
 ChangeLog
 -----------------
+- 2.4
+    - Add /forceSave workaround for 1.9's AsyncChunkLoader silliness.
+    - /allAtOnce now implies /forceSave
+    - Make the memory limit a little more conservative to ensure we don't hit GC overhead errors on low memory servers
+    - Once the memory limit has been hit, wait for ram to decrease below the limit by at least 10% before resuming
+    - Tweak the NextTickList bug workaround - instead of flushing the list, just ensure it stays below a threshold.
+      Should fix the minor lag spikes from the fix.
+    - Minor optimizations
 - 2.3 - Death to Memory Issues edition
     - Includes a fix for CraftBukkit's poor NextTickList handling, allowing high generation speeds on low memory
       servers
