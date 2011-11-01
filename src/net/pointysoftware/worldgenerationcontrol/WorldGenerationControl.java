@@ -118,7 +118,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         private TreeSet ticklist = null;
         private boolean memwait = false;
         private boolean iscraftbukkit = false;
-        private boolean forcesave = false;
+        private boolean forcekeepup = false;
         public GenerationRegion(World world)
         {
             this.world = world;
@@ -159,7 +159,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 }
             }
         }
-        public void setForceSave(boolean v) { this.forcesave = this.iscraftbukkit && v; }
+        public void setForceKeepup(boolean v) { this.forcekeepup = this.iscraftbukkit && v; }
         public void setDebug(boolean v) { this.debug = v; }
         public void setLighting(GenerationLighting v) { this.fixlighting = v; }
         public void setForceRegen(boolean v) { this.forceregeneration = v; }
@@ -174,7 +174,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             else if (this.speed == GenerationSpeed.VERYSLOW) regionsize = 6;
             else regionsize = 20;
             if (this.speed == GenerationSpeed.ALLATONCE)
-                this.setForceSave(true);
+                this.setForceKeepup(true);
         }
         
         public boolean shouldRunAllAtOnce() { return this.speed == GenerationSpeed.ALLATONCE; }
@@ -196,14 +196,13 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 try
                 {
                     // Flush the list
-                    if (debug) statusMsg("-- Forcing server to keep up on NextTickList (to prevent a known CB runaway-memory bug)");
                     while (force ? ticklist.size() > 0 : ticklist.size() > 200000)
                         ((CraftWorld)this.world).getHandle().a(true);
                 }
                 catch(Exception e)
                 {
                     // Probably CB version mismatch.
-                    if (debug) statusMsg("-- ... ^ Failed, unknown CraftBukkit version. Expect very high memory usage.");
+                    if (debug) statusMsg("-- Warning: Failed to force server to keep up on ticklist processing. Probably unknown CraftBukkit version :(");
                 }
             }
             return ticklist.size();
@@ -351,9 +350,10 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 chunks.pop().unload();
             }
             
-            int ticklistbug = this.fixCWTickListLeak(this.speed == GenerationSpeed.ALLATONCE);
-            if (this.forcesave)
+            int ticklistbug = -1;
+            if (this.forcekeepup)
             {
+                ticklistbug = this.fixCWTickListLeak(this.speed == GenerationSpeed.ALLATONCE);
                 try
                 {
                     ((CraftWorld)this.world).getHandle().save(true, null);
@@ -362,7 +362,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 catch (Exception e)
                 {
                     statusMsg("Warning: Unrecognized CraftBukkit build, cannot force saving. Async chunk loader will slow things down!");
-                    this.forcesave = false;
+                    this.forcekeepup = false;
                 }
             }
             if (debug)
@@ -370,7 +370,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 String pctmem = String.format("%.2f", 100 * ((double)(runtime.totalMemory() - runtime.freeMemory()) / runtime.maxMemory())) + "%";
                 String elapsed = String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms";
                 // It'll always be 0 in allatonce mode since we force-clean it --v
-                String tickstr = this.speed != GenerationSpeed.ALLATONCE ? (ticklistbug == -1 ? " - No CB ticklist found" : (" - NextTickList at " + ticklistbug + " entries")) : "";
+                String tickstr = ticklistbug > 0 ? " - NextTickList at " + ticklistbug + " entries" : "";
                 statusMsg("-- " + elapsed + " elapsed. " + world.getLoadedChunks().length + " chunks now loaded - " + pctmem + " memory in use" + tickstr);
             }
             
@@ -837,8 +837,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 gen.setForceRegen(true);
             if (args.getSwitch("onlyWhenEmpty") != null)
                 gen.setOnlyWhenEmpty(true);
-            if (args.getSwitch("forceSave") != null)
-                gen.setForceSave(true);
+            if (args.getSwitch("forceSave") != null || args.getSwitch("forceKeepUp") != null)
+                gen.setForceKeepup(true);
             
             if (bCircular)
                 numChunks = gen.addCircularRegion(world, xCenter, zCenter, radius);
