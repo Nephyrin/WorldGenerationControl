@@ -207,7 +207,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
 
             // Check memory
             String nag = null;
-            double usedmem = ((double)(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / Runtime.getRuntime().maxMemory());
+            double usedmem = ((double)(runtime.totalMemory() - runtime.freeMemory()) / runtime.maxMemory());
             if (usedmem > 0.85D)
             {
                 if (this.speed == GenerationSpeed.ALLATONCE)
@@ -328,7 +328,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             
             if (debug)
             {
-                String pctmem = String.format("%.2f", 100 * ((double)(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / Runtime.getRuntime().maxMemory())) + "%";
+                String pctmem = String.format("%.2f", 100 * ((double)(runtime.totalMemory() - runtime.freeMemory()) / runtime.maxMemory())) + "%";
                 String elapsed = String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms";
                 String tickstr = ticklistbug == -1 ? "No CB ticklist found" : ("NextTickList at " + ticklistbug + " entries");
                 statusMsg("-- " + elapsed + " elapsed. " + world.getLoadedChunks().length + " chunks now loaded - " + pctmem + " memory in use - " + tickstr);
@@ -607,6 +607,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
 
     private Logger logger = Bukkit.getLogger();
     private GenerationRegion currentRegion;
+    private Runtime runtime = Runtime.getRuntime();
     private ArrayDeque<GenerationRegion> pendingRegions = new ArrayDeque<GenerationRegion>();
     private int taskId = 0;
     private boolean quitAfter = false;
