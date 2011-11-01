@@ -205,10 +205,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             if (this.starttime == 0)
                 this.starttime = System.nanoTime();
             
-            // Check for the ticklist bug
-            // in allatonce mode aggressively nuke this list.
-            int ticklistbug = this.fixCWTickListLeak(this.speed == GenerationSpeed.ALLATONCE);
-            
             // Status message
             String queuedtext = "";
             if (queued > 0)
@@ -343,6 +339,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 chunks.pop().unload();
             }
             
+            int ticklistbug = this.fixCWTickListLeak(this.speed == GenerationSpeed.ALLATONCE);
             if (debug)
             {
                 String pctmem = String.format("%.2f", 100 * ((double)(runtime.totalMemory() - runtime.freeMemory()) / runtime.maxMemory())) + "%";
