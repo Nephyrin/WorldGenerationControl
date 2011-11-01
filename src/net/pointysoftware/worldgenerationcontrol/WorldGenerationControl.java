@@ -120,6 +120,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             this.forceregeneration = forceRegeneration;
             this.onlywhenempty = onlywhenempty;
             this.lastnag = 0;
+            this.memwait = false;
             
             this.ticklist = null;
             // See if we can find a ticklist for this world
@@ -214,7 +215,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             // Check memory
             String nag = null;
             double usedmem = ((double)(runtime.totalMemory() - runtime.freeMemory()) / runtime.maxMemory());
-            if (usedmem > 0.80D)
+            if ((this.memwait && usedmem > 0.70D) || usedmem > 0.80D)
             {
                 if (this.speed == GenerationSpeed.ALLATONCE)
                 {
@@ -224,7 +225,10 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     System.gc();
                 }
                 nag = "Less than 20% free memory -- taking a break to let the server catch up";
+                this.memwait = true;
             }
+            else
+                this.memwait = false;
             
             // Check for /onlyWhenEmpty
             if (this.onlywhenempty && getServer().getOnlinePlayers().length > 0)
@@ -456,6 +460,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         private boolean onlywhenempty;
         private long lastnag;
         private TreeSet ticklist;
+        private boolean memwait;
     }
     private class GenerationChunk
     {
