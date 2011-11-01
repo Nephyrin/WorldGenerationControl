@@ -254,7 +254,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     System.runFinalization();
                     System.gc();
                 }
-                nag = "Insufficient free memory -- taking a break to let the server catch up";
+                nag = "Insufficient free memory ("+String.format("%.02f", (double)freemem/(1024*1024))+"MiB)-- taking a break to let the server catch up";
                 this.memwait = true;
             }
             else
