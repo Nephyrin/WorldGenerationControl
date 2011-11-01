@@ -348,8 +348,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 String pctmem = String.format("%.2f", 100 * ((double)(runtime.totalMemory() - runtime.freeMemory()) / runtime.maxMemory())) + "%";
                 String elapsed = String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms";
                 // It'll always be 0 in allatonce mode since we force-clean it --v
-                String tickstr = this.speed != GenerationSpeed.ALLATONCE ? (ticklistbug == -1 ? "No CB ticklist found" : ("NextTickList at " + ticklistbug + " entries")) : "";
-                statusMsg("-- " + elapsed + " elapsed. " + world.getLoadedChunks().length + " chunks now loaded - " + pctmem + " memory in use - " + tickstr);
+                String tickstr = this.speed != GenerationSpeed.ALLATONCE ? (ticklistbug == -1 ? " - No CB ticklist found" : (" - NextTickList at " + ticklistbug + " entries")) : "";
+                statusMsg("-- " + elapsed + " elapsed. " + world.getLoadedChunks().length + " chunks now loaded - " + pctmem + " memory in use" + tickstr);
             }
             
             return false;
