@@ -159,7 +159,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 }
             }
         }
-        public void setForceSave(boolean v) { this.forcesave = v; }
+        public void setForceSave(boolean v) { this.forcesave = this.iscraftbukkit && v; }
         public void setDebug(boolean v) { this.debug = v; }
         public void setLighting(GenerationLighting v) { this.fixlighting = v; }
         public void setForceRegen(boolean v) { this.forceregeneration = v; }
