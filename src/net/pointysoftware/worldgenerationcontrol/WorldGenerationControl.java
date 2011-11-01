@@ -208,6 +208,19 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             return ticklist.size();
         }
         
+        private void printDebug() { this.printDebug(-1); }
+        private void printDebug(long since)
+        {
+            double pctusedmem = ((double)(runtime.totalMemory() - runtime.freeMemory()) / runtime.maxMemory());
+            long freemem = runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory();
+            String memstr = String.format("%.02f", 100*pctusedmem) + "% memory in use, " + String.format("%.02f", (double)freemem/(1024*1024)) + "MiB free";
+            String elapsed = since < 0 ? "" : String.format("%.2f", (double)(System.nanoTime() - since) / 1000000) + "ms elapsed. ";
+            // It'll always be 0 in allatonce mode since we force-clean it --v
+            int ticksize = ticklist != null ? ticklist.size() : 0;
+            String tickstr = ticksize > 0 ? " - NextTickList at " + ticksize + " entries" : "";
+            statusMsg("-- " + elapsed + world.getLoadedChunks().length + " chunks now loaded - " + memstr + tickstr);
+        }
+        
         // returns true if complete
         // queued is number of generations the plugin intends to run after this
         // or -1 if the plugin intends to shutdown the server after this!
@@ -225,8 +238,11 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
 
             // Check memory
             String nag = null;
-            double usedmem = ((double)(runtime.totalMemory() - runtime.freeMemory()) / runtime.maxMemory());
-            if ((this.memwait && usedmem > 0.70D) || usedmem > 0.80D)
+            double pctusedmem = ((double)(runtime.totalMemory() - runtime.freeMemory()) / runtime.maxMemory());
+            // > 80% in use, or <200Megs free.
+            // Until we have better incremental generation, each step needs at least 200megs to not
+            // crash and burn.
+            if ((this.memwait && pctusedmem > 0.70D) || pctusedmem > 0.80D)
             {
                 if (this.speed == GenerationSpeed.ALLATONCE)
                 {
@@ -235,7 +251,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     System.runFinalization();
                     System.gc();
                 }
-                nag = "Less than 20% free memory -- taking a break to let the server catch up";
+                nag = "Insufficient free memory -- taking a break to let the server catch up";
                 this.memwait = true;
             }
             else
@@ -259,6 +275,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     this.lastnag = System.nanoTime();
                     statusMsg(prefix + nag + queuedtext);
                 }
+                printDebug();
                 return false;
             }
             else
@@ -287,6 +304,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     + String.format("%d seconds", seconds % 60);
                     
                 statusMsg("Generation complete in " + took + ". " + (queued > 0 ? "Loading next generation job" : "Have a nice day!") + queuedtext);
+                printDebug();
                 return true;
             }
             else
@@ -364,15 +382,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     this.forcekeepup = false;
                 }
             }
-            if (debug)
-            {
-                String pctmem = String.format("%.2f", 100 * ((double)(runtime.totalMemory() - runtime.freeMemory()) / runtime.maxMemory())) + "%";
-                String elapsed = String.format("%.2f", (double)(System.nanoTime() - stime) / 1000000) + "ms";
-                // It'll always be 0 in allatonce mode since we force-clean it --v
-                int ticksize = ticklist != null ? ticklist.size() : 0;
-                String tickstr = ticksize > 0 ? " - NextTickList at " + ticksize + " entries" : "";
-                statusMsg("-- " + elapsed + " elapsed. " + world.getLoadedChunks().length + " chunks now loaded - " + pctmem + " memory in use" + tickstr);
-            }
+            this.printDebug(stime);
             
             return false;
         }
