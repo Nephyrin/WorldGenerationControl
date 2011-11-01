@@ -253,7 +253,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             else
                 this.lastnag = 0;
             
-            statusMsg(prefix + ChatColor.GRAY + "Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + queuedtext);
+            // Compute this before popping regions off stack
+            String statusmsg = prefix + ChatColor.GRAY + "Section " + ChatColor.WHITE + region + ChatColor.GRAY + "/" + ChatColor.WHITE + totalregions + queuedtext;
             
             // Get next region
             ArrayDeque<GenerationChunk> chunks = null;
@@ -277,6 +278,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 statusMsg("Generation complete in " + took + ". " + (queued > 0 ? "Loading next generation job" : "Have a nice day!") + queuedtext);
                 return true;
             }
+            else
+                statusMsg(statusmsg);
             
             //
             // Load Chunks
