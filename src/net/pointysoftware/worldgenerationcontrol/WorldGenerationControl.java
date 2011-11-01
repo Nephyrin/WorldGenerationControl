@@ -237,6 +237,21 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             if (queued == -1)
                 queuedtext = ChatColor.DARK_GRAY + " {" + ChatColor.DARK_RED + "shutdown scheduled" + ChatColor.DARK_GRAY + "}";
 
+            if (this.forcekeepup)
+            {
+                this.fixCWTickListLeak(this.speed == GenerationSpeed.ALLATONCE);
+                try
+                {
+                    ((CraftWorld)this.world).getHandle().save(true, null);
+                    ((CraftWorld)this.world).getHandle().saveLevel();
+                }
+                catch (Exception e)
+                {
+                    statusMsg("Warning: Unrecognized CraftBukkit build, cannot force saving. Async chunk loader will slow things down!");
+                    this.forcekeepup = false;
+                }
+            }
+            
             // Check memory
             String nag = null;
             double pctusedmem = ((double)(runtime.totalMemory() - runtime.freeMemory()) / runtime.maxMemory());
@@ -376,20 +391,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 chunks.pop().unload();
             }
             
-            if (this.forcekeepup)
-            {
-                this.fixCWTickListLeak(this.speed == GenerationSpeed.ALLATONCE);
-                try
-                {
-                    ((CraftWorld)this.world).getHandle().save(true, null);
-                    ((CraftWorld)this.world).getHandle().saveLevel();
-                }
-                catch (Exception e)
-                {
-                    statusMsg("Warning: Unrecognized CraftBukkit build, cannot force saving. Async chunk loader will slow things down!");
-                    this.forcekeepup = false;
-                }
-            }
             this.printDebug(stime);
             
             return false;
