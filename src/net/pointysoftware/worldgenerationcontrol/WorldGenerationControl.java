@@ -214,7 +214,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             // Check memory
             String nag = null;
             double usedmem = ((double)(runtime.totalMemory() - runtime.freeMemory()) / runtime.maxMemory());
-            if (usedmem > 0.85D)
+            if (usedmem > 0.80D)
             {
                 if (this.speed == GenerationSpeed.ALLATONCE)
                 {
@@ -223,7 +223,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     System.runFinalization();
                     System.gc();
                 }
-                nag = "Less than 15% free memory -- taking a break to let the server catch up";
+                nag = "Less than 20% free memory -- taking a break to let the server catch up";
             }
             
             // Check for /onlyWhenEmpty
