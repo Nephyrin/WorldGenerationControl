@@ -115,6 +115,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         private boolean forceregeneration = false;
         private boolean onlywhenempty = false;
         private long lastnag = 0;
+        private long lastdebugnag = 0;
         private TreeSet ticklist = null;
         private boolean memwait = false;
         private boolean iscraftbukkit = false;
@@ -275,10 +276,14 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 long now = System.nanoTime();
                 if (this.lastnag + 300000000000L < now)
                 {
-                    this.lastnag = System.nanoTime();
+                    this.lastnag = now;
                     statusMsg(prefix + nag + queuedtext);
                 }
-                printDebug();
+                if (this.lastdebugnag + 3000000000L < now)
+                {
+                    printDebug();
+                    this.lastdebugnag = now;
+                }
                 return false;
             }
             else
