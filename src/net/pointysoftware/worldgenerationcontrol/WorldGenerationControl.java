@@ -104,27 +104,27 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     }
     public class GenerationRegion
     {
-        GenerationRegion(World world, GenerationSpeed speed, GenerationLighting lighting) { this._construct(world, speed, lighting, false, false, false); }
-        GenerationRegion(World world, GenerationSpeed speed, GenerationLighting lighting, boolean debug) { this._construct(world, speed, lighting, debug, false, false); }
-        GenerationRegion(World world, GenerationSpeed speed, GenerationLighting lighting, boolean debug, boolean forceRegeneration) { this._construct(world, speed, lighting, debug, forceRegeneration, false); }
-        GenerationRegion(World world, GenerationSpeed speed, GenerationLighting lighting, boolean debug, boolean forceRegeneration, boolean onlywhenempty) { this._construct(world, speed, lighting, debug, forceRegeneration, onlywhenempty); }
-        private void _construct(World world, GenerationSpeed speed, GenerationLighting lighting, boolean debug, boolean forceRegeneration, boolean onlywhenempty)
+        private ArrayDeque<QueuedRegion> queuedregions = new ArrayDeque<QueuedRegion>();
+        private World world;
+        private GenerationLighting fixlighting = GenerationLighting.NORMAL;
+        private GenerationSpeed speed = GenerationSpeed.NORMAL;
+        private int totalregions = 0;
+        private int regionsize;
+        private long starttime = 0;
+        private boolean debug = false;
+        private boolean forceregeneration = false;
+        private boolean onlywhenempty = false;
+        private long lastnag = 0;
+        private TreeSet ticklist = null;
+        private boolean memwait = false;
+        private boolean iscraftbukkit = false;
+        private boolean forcesave = false;
+        public GenerationRegion(World world)
         {
-            this.debug = debug;
-            this.totalregions = 0;
             this.world = world;
-            this.speed = speed;
-            this.fixlighting = lighting;
-            this.queuedregions = new ArrayDeque<QueuedRegion>();
-            this.starttime = 0;
-            this.forceregeneration = forceRegeneration;
-            this.onlywhenempty = onlywhenempty;
-            this.lastnag = 0;
-            this.forcesave = false;
-            this.memwait = false;
             this.iscraftbukkit = this.world instanceof CraftWorld;
+            this.setSpeed(GenerationSpeed.NORMAL);
             
-            this.ticklist = null;
             // See if we can find a ticklist for this world
             // used in fixCWTickListLeak
             if (this.iscraftbukkit)
@@ -158,7 +158,15 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     }
                 }
             }
-            
+        }
+        public void setForceSave(boolean v) { this.forcesave = v; }
+        public void setDebug(boolean v) { this.debug = v; }
+        public void setLighting(GenerationLighting v) { this.fixlighting = v; }
+        public void setForceRegen(boolean v) { this.forceregeneration = v; }
+        public void setOnlyWhenEmpty(boolean v) { this.onlywhenempty = v; }
+        public void setSpeed(GenerationSpeed v)
+        {
+            this.speed = v;
             if (this.speed == GenerationSpeed.VERYFAST) regionsize = 32;
             else if (this.speed == GenerationSpeed.FAST) regionsize = 24;
             else if (this.speed == GenerationSpeed.NORMAL) regionsize = 12;
@@ -166,7 +174,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             else if (this.speed == GenerationSpeed.VERYSLOW) regionsize = 6;
             else regionsize = 20;
         }
-        public void setForceSave(boolean v) { this.forcesave = v; }
         
         public boolean shouldRunAllAtOnce() { return this.speed == GenerationSpeed.ALLATONCE; }
         
@@ -468,22 +475,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             // Chunks this represents
             public int getSize() { return (xEnd - xStart + 1) * (zEnd - zStart + 1); }
         }
-        
-        private ArrayDeque<QueuedRegion> queuedregions;
-        private World world;
-        private GenerationLighting fixlighting;
-        private GenerationSpeed speed;
-        private int totalregions;
-        private int regionsize;
-        private long starttime;
-        private boolean debug;
-        private boolean forceregeneration;
-        private boolean onlywhenempty;
-        private long lastnag;
-        private TreeSet ticklist;
-        private boolean memwait;
-        private boolean iscraftbukkit;
-        private boolean forcesave;
     }
     private class GenerationChunk
     {
@@ -835,7 +826,16 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             else
                 lighting = GenerationLighting.NONE;
             
-            GenerationRegion gen = new GenerationRegion(world, speed, lighting, args.getSwitch("debug") != null || args.getSwitch("verbose") != null, args.getSwitch("destroyAndRegenerateArea") != null, args.getSwitch("onlyWhenEmpty") != null);
+            GenerationRegion gen = new GenerationRegion(world);
+            gen.setSpeed(speed);
+            gen.setLighting(lighting);
+            if (args.getSwitch("debug") != null || args.getSwitch("verbose") != null)
+                gen.setDebug(true);
+            if (args.getSwitch("destroyAndRegenerateArea") != null)
+                gen.setForceRegen(true);
+            if (args.getSwitch("onlyWhenEmpty") != null)
+                gen.setOnlyWhenEmpty(true);
+            
             if (bCircular)
                 numChunks = gen.addCircularRegion(world, xCenter, zCenter, radius);
             else
