@@ -121,6 +121,41 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             this.onlywhenempty = onlywhenempty;
             this.lastnag = 0;
             
+            this.ticklist = null;
+            // See if we can find a ticklist for this world
+            // used in fixCWTickListLeak
+            if (this.world instanceof CraftWorld)
+            {
+                Class cw;
+                try
+                {
+                    cw = ((CraftWorld)this.world).getHandle().getClass().forName("net.minecraft.server.World");
+                }
+                catch (ClassNotFoundException e) { cw = null; }
+                if (cw != null)
+                {
+                    Field fields[] = cw.getDeclaredFields();
+                    for (int i = 0; i < fields.length; i++)
+                    {
+                        // 1.9p5: TickList is private TreeSet K
+                        // 1.8.1: TickList is private TreeSet N
+                        // No other treesets in the world fields, so this is pretty safe.
+                        if (fields[i].getName() == "K" || fields[i].getName() == "N")
+                        {
+                            fields[i].setAccessible(true);
+                            Object f;
+                            try { f = fields[i].get(((CraftWorld)this.world).getHandle()); }
+                            catch (IllegalAccessException e) { continue; }
+                            if (f instanceof TreeSet)
+                            {
+                                ticklist = (TreeSet)f;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
             if (this.speed == GenerationSpeed.VERYFAST) regionsize = 32;
             else if (this.speed == GenerationSpeed.FAST) regionsize = 24;
             else if (this.speed == GenerationSpeed.NORMAL) regionsize = 12;
@@ -141,50 +176,21 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             // See if this is CraftBukkit and we can fix the NextTickList leak
             // otherwise it can mean lots of useless idle time while the server
             // catches up slowly, see: https://github.com/Bukkit/CraftBukkit/pull/501
-            TreeSet set = null;
-            if (this.world instanceof CraftWorld)
+            if (ticklist != null && ticklist.size() > 500000)
             {
-                Class cw;
                 try
                 {
-                    cw = ((CraftWorld)this.world).getHandle().getClass().forName("net.minecraft.server.World");
+                    // Flush the list
+                    if (debug) statusMsg("-- Detected runaway NextTickList entries, a known CraftBukkit bug. Fixing.");
+                    while (((CraftWorld)this.world).getHandle().a(true));
                 }
-                catch (ClassNotFoundException e) { return -1; }
-                Field fields[] = cw.getDeclaredFields();
-                for (int i = 0; i < fields.length; i++)
+                catch(Exception e)
                 {
-                    // 1.9p5: TickList is private TreeSet K
-                    // 1.8.1: TickList is private TreeSet N
-                    // No other treesets in the world fields, so this is pretty safe.
-                    if (fields[i].getName() == "K" || fields[i].getName() == "N")
-                    {
-                        fields[i].setAccessible(true);
-                        Object f;
-                        try { f = fields[i].get(((CraftWorld)this.world).getHandle()); }
-                        catch (IllegalAccessException e) { continue; }
-                        if (f instanceof TreeSet)
-                        {
-                            set = (TreeSet)f;
-                            break;
-                        }
-                    }
-                }
-                if (set != null && set.size() > 500000)
-                {
-                    try
-                    {
-                        // Flush the list
-                        if (debug) statusMsg("-- Detected runaway NextTickList entries, a known CraftBukkit bug. Fixing.");
-                        while (((CraftWorld)this.world).getHandle().a(true));
-                    }
-                    catch(Exception e)
-                    {
-                        // Probably CB version mismatch.
-                        if (debug) statusMsg("-- ... Fix failed, unknown CraftBukkit version. Expect very high memory usage.");
-                    }
+                    // Probably CB version mismatch.
+                    if (debug) statusMsg("-- ... Fix failed, unknown CraftBukkit version. Expect very high memory usage.");
                 }
             }
-            return (set == null) ? -1 : set.size();
+            return (ticklist == null) ? -1 : ticklist.size();
         }
         
         // returns true if complete
@@ -449,6 +455,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         private boolean forceregeneration;
         private boolean onlywhenempty;
         private long lastnag;
+        private TreeSet ticklist;
     }
     private class GenerationChunk
     {
@@ -611,7 +618,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     private ArrayDeque<GenerationRegion> pendingRegions = new ArrayDeque<GenerationRegion>();
     private int taskId = 0;
     private boolean quitAfter = false;
-    
+
     public void onEnable()
     {
         statusMsg("v"+VERSION+" Loaded");
