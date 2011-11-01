@@ -173,6 +173,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             else if (this.speed == GenerationSpeed.SLOW) regionsize = 8;
             else if (this.speed == GenerationSpeed.VERYSLOW) regionsize = 6;
             else regionsize = 20;
+            if (this.speed == GenerationSpeed.ALLATONCE)
+                this.setForceSave(true);
         }
         
         public boolean shouldRunAllAtOnce() { return this.speed == GenerationSpeed.ALLATONCE; }
@@ -835,6 +837,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 gen.setForceRegen(true);
             if (args.getSwitch("onlyWhenEmpty") != null)
                 gen.setOnlyWhenEmpty(true);
+            if (args.getSwitch("forceSave") != null)
+                gen.setForceSave(true);
             
             if (bCircular)
                 numChunks = gen.addCircularRegion(world, xCenter, zCenter, radius);
