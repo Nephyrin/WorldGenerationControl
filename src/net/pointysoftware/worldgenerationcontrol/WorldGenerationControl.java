@@ -126,8 +126,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             this.iscraftbukkit = this.world instanceof CraftWorld;
             this.setSpeed(GenerationSpeed.NORMAL);
             
-            // See if we can find a ticklist for this world
-            // used in fixCWTickListLeak
+            // See if we can find the ticklist handle
             if (this.iscraftbukkit)
             {
                 Class cw;
@@ -184,31 +183,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         {
             this.queuedregions.clear();
         }
-        
-        private int fixCWTickListLeak() { return this.fixCWTickListLeak(false); }
-        private int fixCWTickListLeak(boolean force)
-        {
-            if (ticklist == null) return -1;
-            // See if this is CraftBukkit and we can fix the NextTickList leak
-            // otherwise it can mean lots of useless idle time while the server
-            // catches up slowly, see: https://github.com/Bukkit/CraftBukkit/pull/501
-            if (ticklist.size() > 200000 || (force && ticklist.size() > 0))
-            {
-                try
-                {
-                    // Flush the list
-                    while (force ? ticklist.size() > 0 : ticklist.size() > 200000)
-                        ((CraftWorld)this.world).getHandle().a(true);
-                }
-                catch(Exception e)
-                {
-                    // Probably CB version mismatch.
-                    if (debug) statusMsg("-- Warning: Failed to force server to keep up on ticklist processing. Probably unknown CraftBukkit version :(");
-                }
-            }
-            return ticklist.size();
-        }
-        
+
         private void printDebug() { this.printDebug(-1); }
         private void printDebug(long since)
         {
@@ -239,7 +214,24 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
 
             if (this.forcekeepup)
             {
-                this.fixCWTickListLeak(this.speed == GenerationSpeed.ALLATONCE);
+                // See if this is CraftBukkit and we can fix the NextTickList leak
+                // otherwise it can mean lots of useless idle time while the server
+                // catches up slowly, see: https://github.com/Bukkit/CraftBukkit/pull/501
+                if (this.ticklist != null)
+                {
+                    try
+                    {
+                        // Flush the list
+                        while (ticklist.size() > (this.speed == GenerationSpeed.ALLATONCE ? 0 : 200000))
+                            ((CraftWorld)this.world).getHandle().a(true);
+                    }
+                    catch(Exception e)
+                    {
+                        // Probably CB version mismatch.
+                        if (debug) statusMsg("-- Warning: Failed to force server to keep up on ticklist processing. Probably unknown CraftBukkit version :(");
+                    }
+                }
+                // In 1.9+ the async chunk loader takes its sweet fuckin' time
                 try
                 {
                     ((CraftWorld)this.world).getHandle().save(true, null);
@@ -250,6 +242,12 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     statusMsg("Warning: Unrecognized CraftBukkit build, cannot force saving. Async chunk loader will slow things down!");
                     this.forcekeepup = false;
                 }
+                // With default java options, a moderately loaded server
+                // will simply not invoke the GC until it really needs
+                // to, meaning we can just sit above our memory limits
+                // forever if we don't force it
+                System.runFinalization();
+                System.gc();
             }
             
             // Check memory
@@ -263,13 +261,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             // crash and burn.
             if ((this.memwait && pctusedmem > 0.70D) || pctusedmem > 0.80D || freemem < (200 * 1024 * 1024))
             {
-                if (this.speed == GenerationSpeed.ALLATONCE)
-                {
-                    // If we're going all at once, spend this
-                    // tick on GC
-                    System.runFinalization();
-                    System.gc();
-                }
                 nag = "Insufficient free memory ("+String.format("%.02f", (double)freemem/(1024*1024))+"MiB)-- taking a break to let the server catch up";
                 this.memwait = true;
             }
