@@ -117,7 +117,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         private long lastnag = 0;
         private long lastdebugnag = 0;
         private TreeSet ticklist = null;
-        private boolean memwait = false;
+        private long memwait = -1;
         private boolean iscraftbukkit = false;
         private boolean forcekeepup = false;
         public GenerationRegion(World world)
@@ -202,6 +202,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         // or -1 if the plugin intends to shutdown the server after this!
         public boolean runStep(int queued)
         {
+            long now = System.nanoTime();
             if (this.starttime == 0)
                 this.starttime = System.nanoTime();
             
@@ -259,13 +260,23 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             // > 80% in use, or <200Megs free.
             // Until we have better incremental generation, each step needs at least 200megs to not
             // crash and burn.
-            if ((this.memwait && pctusedmem > 0.70D) || pctusedmem > 0.80D || freemem < (200 * 1024 * 1024))
+            if ((this.memwait > -1 && pctusedmem > 0.70D) || pctusedmem > 0.80D || freemem < (200 * 1024 * 1024))
             {
                 nag = "Insufficient free memory ("+String.format("%.02f", (double)freemem/(1024*1024))+"MiB)-- taking a break to let the server catch up";
-                this.memwait = true;
+                if (this.memwait > -1 && this.memwait + 30000000000L < now)
+                {
+                    this.memwait = now;
+                    // It's fully possible for java, with default settings, to just sit at 85%
+                    // memory without invoking GC. Even without /forceKeepUp, we should
+                    // nudge the GC if its taking a while
+                    if (debug) statusMsg("-- Been waiting on memory for a while, invoking a GC");
+                    System.runFinalization();
+                    System.gc();
+                }
+                if (this.memwait == -1) this.memwait = now;
             }
             else
-                this.memwait = false;
+                this.memwait = -1;
             
             // Check for /onlyWhenEmpty
             if (this.onlywhenempty && getServer().getOnlinePlayers().length > 0)
@@ -279,7 +290,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             if (nag != null)
             {
                 // Should bail out
-                long now = System.nanoTime();
                 if (this.lastnag + 300000000000L < now)
                 {
                     this.lastnag = now;
@@ -303,7 +313,6 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             while (queuedregions.size() > 0 && chunks == null)
                 chunks = queuedregions.pop().getChunks(this.world);
             
-            long stime = debug ? System.nanoTime() : 0;
             if (chunks == null)
             {
                 // Generation complete
@@ -382,7 +391,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 chunks.pop().unload();
             }
             
-            this.printDebug(stime);
+            this.printDebug(now);
             
             return false;
         }
