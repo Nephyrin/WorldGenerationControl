@@ -159,7 +159,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 }
             }
         }
-        public void setForceKeepup(boolean v) { this.forcekeepup = this.iscraftbukkit && v; }
+        public void setForceKeepup(boolean v) { this.forcekeepup = v; }
         public void setDebug(boolean v) { this.debug = v; }
         public void setLighting(GenerationLighting v) { this.fixlighting = v; }
         public void setForceRegen(boolean v) { this.forceregeneration = v; }
@@ -215,33 +215,36 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
 
             if (this.forcekeepup)
             {
-                // See if this is CraftBukkit and we can fix the NextTickList leak
-                // otherwise it can mean lots of useless idle time while the server
-                // catches up slowly, see: https://github.com/Bukkit/CraftBukkit/pull/501
-                if (this.ticklist != null)
+                if (this.iscraftbukkit)
                 {
+                    // See if this is CraftBukkit and we can fix the NextTickList leak
+                    // otherwise it can mean lots of useless idle time while the server
+                    // catches up slowly, see: https://github.com/Bukkit/CraftBukkit/pull/501
+                    if (this.ticklist != null)
+                    {
+                        try
+                        {
+                            // Flush the list
+                            while (ticklist.size() > (this.speed == GenerationSpeed.ALLATONCE ? 0 : 200000))
+                                ((CraftWorld)this.world).getHandle().a(true);
+                        }
+                        catch(Exception e)
+                        {
+                            // Probably CB version mismatch.
+                            if (debug) statusMsg("-- Warning: Failed to force server to keep up on ticklist processing. Probably unknown CraftBukkit version :(");
+                        }
+                    }
+                    // In 1.9+ the async chunk loader takes its sweet fuckin' time
                     try
                     {
-                        // Flush the list
-                        while (ticklist.size() > (this.speed == GenerationSpeed.ALLATONCE ? 0 : 200000))
-                            ((CraftWorld)this.world).getHandle().a(true);
+                        ((CraftWorld)this.world).getHandle().save(true, null);
+                        ((CraftWorld)this.world).getHandle().saveLevel();
                     }
-                    catch(Exception e)
+                    catch (Exception e)
                     {
-                        // Probably CB version mismatch.
-                        if (debug) statusMsg("-- Warning: Failed to force server to keep up on ticklist processing. Probably unknown CraftBukkit version :(");
+                        statusMsg("Warning: Unrecognized CraftBukkit build, cannot force saving. Async chunk loader will slow things down!");
+                        this.iscraftbukkit = false;
                     }
-                }
-                // In 1.9+ the async chunk loader takes its sweet fuckin' time
-                try
-                {
-                    ((CraftWorld)this.world).getHandle().save(true, null);
-                    ((CraftWorld)this.world).getHandle().saveLevel();
-                }
-                catch (Exception e)
-                {
-                    statusMsg("Warning: Unrecognized CraftBukkit build, cannot force saving. Async chunk loader will slow things down!");
-                    this.forcekeepup = false;
                 }
                 // With default java options, a moderately loaded server
                 // will simply not invoke the GC until it really needs
