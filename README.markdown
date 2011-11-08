@@ -1,4 +1,4 @@
-WorldGenerationControl 2.4
+WorldGenerationControl 2.5
 =================
 Formerly ForceGenChunks
 
@@ -61,12 +61,12 @@ Options are not case sensitive. The available options are:
   Raising the speed with fast or veryfast will cause more lag but speed up the generation, slow or veryslow will reduce
   lag while increasing generation times. Veryfast will cause a lot of lag. Veryslow will cause almost no lag, but will
   take something like 10x longer.
-- /forceSave - Only affects CraftBukkit 1.9+ - 1.9 Has a new async chunk saver, which appears to be rate limited,
-  meaning it will not 'keep up' with fast generations. This option forces the chunks to be saved immediately, rather
-  than on a separate thread.
+- /forceKeepUp - Force the server to 'keep up' with garbage collection and chunk saving.
+  In particular, 1.9 Has a new async chunk saver, which appears to be rate limited, meaning it may not keep up with
+  fast generations. This option forces the chunks to be saved immediately, rather than on a separate thread.
   You should use this option if you notice the plugin spending a lot of time "waiting for the server to catch up" and
-  don't mind the minor increase in CPU usage caused by forcing it to keep up. It effectively disables the async chunk
-  saver for the duration of the generation. /allAtOnce mode will always use this option.
+  don't mind the minor increase in CPU usage caused by forcing it to keep up. /allAtOnce mode will always use this
+  option.
 - /lighting:none - Skip generating light data for loaded chunks. See **Notes on Lighting** below.
 - /lighting:force - Reset and regenerate lighting for all chunks we pass over, even if they already have lighting data.
   Useful for fixing areas with corrupt lighting.
@@ -131,21 +131,21 @@ This shouldn't cause any problems, but takes about 8% more CPU-time. You can ski
 chunks will still be lit when a player wanders by, so this is only an issue for external tools as mentioned above.
 
 There is also /lighting:force, which will force-generate lighting for all chunks it passes over (even those already
-generated and with proper lighting), which is useful for making minecraft recalculate the lighting in areas with
+generated and with proper lighting), which is useful for making Minecraft recalculate the lighting in areas with
 glitched shadows.
 
 Using in a Script
 -----------------
 
 The /quitAfter option lets this plugin be used as part of a script. For example, some users like to generate maps for a
-lot of random seeds to share with the community or post on /r/minecraft for delicious karma. Because bukkit/java freaks
+lot of random seeds to share with the community or post on /r/minecraft for delicious karma. Because Bukkit/java freaks
 out when EOF is encountered in input, the proper way to do this would be something like:
 
 > echo "gencircle 1000 TestWorld 0 0 /allatonce /quitafter" | cat - /dev/full | java -jar craftbukkit-0.0.1-SNAPSHOT.jar --nojline
 
 Download
 -----------------
-https://github.com/downloads/Nephyrin/WorldGenerationControl/WorldGenerationControl_v2.4.jar
+https://github.com/downloads/Nephyrin/WorldGenerationControl/WorldGenerationControl_v2.5.jar
 
 Source
 -----------------
@@ -153,6 +153,14 @@ https://github.com/Nephyrin/WorldGenerationControl
 
 ChangeLog
 -----------------
+- 2.5
+    - /forceKeepUp now keeps up on garbage collection as well
+    - Renamed /forceSave to /forceKeepUp to reflect that it also keeps up on garbage collection.
+    - When the server is floating at >80% memory for too long, try invoking a GC. This fixes the issue where the default
+      Java GC options would have it float at 80% memory forever as long as nothing forced it to catch up.
+    - Cleaned up /verbose output a little.
+    - Check if we have <200Megs free in addition to <20% free, prevents out of memory errors on 512Meg ram servers
+      (which this plugin doesn't technically support)
 - 2.4
     - Add /forceSave workaround for 1.9's AsyncChunkLoader silliness.
     - /allAtOnce now implies /forceSave
