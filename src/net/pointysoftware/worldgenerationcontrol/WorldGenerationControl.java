@@ -300,7 +300,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 }
                 if (this.lastdebugnag + 3000000000L < now)
                 {
-                    printDebug();
+                    if (debug) printDebug();
                     this.lastdebugnag = now;
                 }
                 return false;
@@ -330,7 +330,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     + String.format("%d seconds", seconds % 60);
                     
                 statusMsg("Generation complete in " + took + ". " + (queued > 0 ? "Loading next generation job" : "Have a nice day!") + queuedtext);
-                printDebug();
+                if (debug) printDebug();
                 return true;
             }
             else
@@ -394,7 +394,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 chunks.pop().unload();
             }
             
-            this.printDebug(now);
+            if (debug) this.printDebug(now);
             
             return false;
         }
