@@ -68,7 +68,7 @@ import org.bukkit.craftbukkit.CraftWorld;
 
 public class WorldGenerationControl extends JavaPlugin implements Runnable
 {
-    private final static String VERSION = "2.5";
+    private final static String VERSION = "2.6";
     
     public enum GenerationSpeed
     {

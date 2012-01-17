@@ -1,6 +1,6 @@
 name: WorldGenerationControl
 main: net.pointysoftware.worldgenerationcontrol.WorldGenerationControl
-version: 2.5
+version: 2.6
 author: john@pointysoftware.net
 
 permissions:

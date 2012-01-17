@@ -1,4 +1,4 @@
-WorldGenerationControl 2.5
+WorldGenerationControl 2.6
 =================
 Formerly ForceGenChunks
 
@@ -145,7 +145,7 @@ out when EOF is encountered in input, the proper way to do this would be somethi
 
 Download
 -----------------
-https://github.com/downloads/Nephyrin/WorldGenerationControl/WorldGenerationControl_v2.5.jar
+https://github.com/downloads/Nephyrin/WorldGenerationControl/WorldGenerationControl_v2.6.jar
 
 Source
 -----------------
@@ -153,6 +153,8 @@ https://github.com/Nephyrin/WorldGenerationControl
 
 ChangeLog
 -----------------
+- 2.6
+    - Updated to work with 1.0.1 / 1.1 builds.
 - 2.5
     - /forceKeepUp now keeps up on garbage collection as well
     - Renamed /forceSave to /forceKeepUp to reflect that it also keeps up on garbage collection.
