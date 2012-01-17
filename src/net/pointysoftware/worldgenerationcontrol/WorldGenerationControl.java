@@ -175,9 +175,11 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             else if (this.speed == GenerationSpeed.NORMAL) regionsize = 12;
             else if (this.speed == GenerationSpeed.SLOW) regionsize = 8;
             else if (this.speed == GenerationSpeed.VERYSLOW) regionsize = 6;
-            else regionsize = 20;
-            if (this.speed == GenerationSpeed.ALLATONCE)
+            else if (this.speed == GenerationSpeed.ALLATONCE)
+            {
+                regionsize = 32;
                 this.setForceKeepup(true);
+            }
         }
         
         public boolean shouldRunAllAtOnce() { return this.speed == GenerationSpeed.ALLATONCE; }
