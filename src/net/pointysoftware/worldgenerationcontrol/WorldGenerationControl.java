@@ -22,6 +22,8 @@
 package net.pointysoftware.worldgenerationcontrol;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 
 import java.util.logging.Logger;
 import java.util.Iterator;
@@ -67,6 +69,7 @@ import org.bukkit.craftbukkit.CraftWorld;
 public class WorldGenerationControl extends JavaPlugin implements Runnable
 {
     private final static String VERSION = "2.5";
+    
     public enum GenerationSpeed
     {
         // Only pause two ticks between regions, unplayable
@@ -126,9 +129,9 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             this.iscraftbukkit = this.world instanceof CraftWorld;
             this.setSpeed(GenerationSpeed.NORMAL);
             
-            // See if we can find the ticklist handle
             if (this.iscraftbukkit)
             {
+                // Find ticklist handle
                 Class cw;
                 try
                 {
@@ -140,8 +143,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     Field fields[] = cw.getDeclaredFields();
                     for (int i = 0; i < fields.length; i++)
                     {
-                        // 1.9p5: TickList is private TreeSet K
-                        // 1.8.1: TickList is private TreeSet N
+                        // b1.9p5 through 1.1: TickList is private TreeSet K
+                        // b1.8.1: TickList is private TreeSet N
                         // No other treesets in the world fields, so this is pretty safe.
                         if (fields[i].getName() == "K" || fields[i].getName() == "N")
                         {
@@ -225,6 +228,9 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                         try
                         {
                             // Flush the list
+                            // In CB1.1 processing will ramp up as the list grows to 5% of the list per tick
+                            // but equilibrium isn't reached until the millions, so this is still of use for
+                            // users with memory concerns.
                             while (ticklist.size() > (this.speed == GenerationSpeed.ALLATONCE ? 0 : 200000))
                                 ((CraftWorld)this.world).getHandle().a(true);
                         }
@@ -531,20 +537,36 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         public void fixLighting(boolean force)
         {
             if (this.chunk == null) return;
-            // initLighting 'resets' the lighting for a chunk, doing fast lighting on everything and marking them all as needing full lighting
-            // Don't do it on chunks without their adjacents loaded, since the h() will then fail to fix them and we're actually breaking
-            // potentially good lighting.
-            if (force && this.world.isChunkLoaded(x - 1, z - 1) &&
-                         this.world.isChunkLoaded(x - 1, z) &&
-                         this.world.isChunkLoaded(x - 1, z + 1) &&
-                         this.world.isChunkLoaded(x, z - 1) &&
-                         this.world.isChunkLoaded(x, z + 1) &&
-                         this.world.isChunkLoaded(x + 1, z - 1) &&
-                         this.world.isChunkLoaded(x + 1, z) &&
-                         this.world.isChunkLoaded(x + 1, z + 1))
-                ((CraftChunk)this.chunk).getHandle().initLighting();
-            // h() calls i() (private) which relights all x/z columns marked as needing full lighting
-            ((CraftChunk)this.chunk).getHandle().h();
+            
+            if (WorldGenerationControl.lightingFixMethod instanceof Method)
+            {
+                // initLighting 'resets' the lighting for a chunk, doing fast lighting on everything and marking them all as needing full lighting
+                // Don't do it on chunks without their adjacents loaded, since the h() will then fail to fix them and we're actually breaking
+                // potentially good lighting.
+                
+                net.minecraft.server.Chunk rawchunk = ((CraftChunk)this.chunk).getHandle();
+                
+                if (force && this.world.isChunkLoaded(x - 1, z - 1) &&
+                    this.world.isChunkLoaded(x - 1, z) &&
+                    this.world.isChunkLoaded(x - 1, z + 1) &&
+                    this.world.isChunkLoaded(x, z - 1) &&
+                    this.world.isChunkLoaded(x, z + 1) &&
+                    this.world.isChunkLoaded(x + 1, z - 1) &&
+                    this.world.isChunkLoaded(x + 1, z) &&
+                    this.world.isChunkLoaded(x + 1, z + 1))
+                {
+                    rawchunk.initLighting();
+                }
+                try
+                {
+                    WorldGenerationControl.lightingFixMethod.invoke(rawchunk);
+                }
+                catch (Exception e)
+                {
+                    // This shouldn't happen, as we checked access earlier.
+                    WorldGenerationControl.lightingFixMethod = null;
+                }
+            }
         }
         
         public void load() { this.load(false); }
@@ -658,6 +680,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     private Logger logger = Bukkit.getLogger();
     private GenerationRegion currentRegion;
     private Runtime runtime = Runtime.getRuntime();
+    private static Method lightingFixMethod = null;
     private ArrayDeque<GenerationRegion> pendingRegions = new ArrayDeque<GenerationRegion>();
     private int taskId = 0;
     private boolean quitAfter = false;
@@ -665,6 +688,34 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     public void onEnable()
     {
         statusMsg("v"+VERSION+" Loaded");
+        
+        if (WorldGenerationControl.lightingFixMethod == null)
+        {
+            // Find lighting fix method
+            // pre 1.0: h() calls i() (private) which relights all x/z columns marked as needing full lighting
+            // Post 1.0: i() is public and calls k()
+            // Thus, try getting public i(), if it fails, try h().
+            Class cc;
+            try
+            {
+                cc = Class.forName("net.minecraft.server.Chunk");
+                try
+                {
+                    Method m = cc.getDeclaredMethod("i");
+                    if ((m.getModifiers() & Modifier.PUBLIC) != 0)
+                        WorldGenerationControl.lightingFixMethod = m;
+                    else
+                        throw new Exception();
+                }
+                catch (Exception e)
+                {
+                    Method m = cc.getDeclaredMethod("h");
+                    if ((m.getModifiers() & Modifier.PUBLIC) != 0)
+                        WorldGenerationControl.lightingFixMethod = m;
+                }
+            }
+            catch (Exception e) {}
+        }
     }
     
     // Send a status message to all players
