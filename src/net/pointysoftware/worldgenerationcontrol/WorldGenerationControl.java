@@ -143,10 +143,15 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                     Field fields[] = cw.getDeclaredFields();
                     for (int i = 0; i < fields.length; i++)
                     {
-                        // b1.9p5 through 1.1: TickList is private TreeSet K
-                        // b1.8.1: TickList is private TreeSet N
+                        // The ticklist is a private treeset. With a whitelist
+                        // of what variable names it may be, and the fact that
+                        // no other TreeSets exist in world, this is pretty
+                        // safe.
+                        // 1.2.3 - H
+                        // b1.9p5 through 1.1: K
+                        // b1.8.1 - N
                         // No other treesets in the world fields, so this is pretty safe.
-                        if (fields[i].getName() == "K" || fields[i].getName() == "N")
+                        if (fields[i].getName() == "K" || fields[i].getName() == "H" || fields[i].getName() == "N")
                         {
                             fields[i].setAccessible(true);
                             Object f;
