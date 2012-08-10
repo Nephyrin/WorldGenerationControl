@@ -150,6 +150,8 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                         // b1.9p5 through 1.1: K
                         // b1.8.1 - N
                         // No other treesets in the world fields, so this is pretty safe.
+			// FIXME in 1.3.1 CB this is a (protected) "chunkTickList", a org.bukkit.craftbukkit.util.LongHashset (FFS)
+			//       - It has a .size() we'll need to grab...
                         if (fields[i].getName() == "K" || fields[i].getName() == "H" || fields[i].getName() == "N")
                         {
                             fields[i].setAccessible(true);
@@ -182,7 +184,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             else if (this.speed == GenerationSpeed.ALLATONCE)
             {
                 regionsize = 32;
-                this.setForceKeepup(true);
+                this.setForceKeepup(false);
             }
         }
         
@@ -237,6 +239,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                             // In CB1.1 processing will ramp up as the list grows to 5% of the list per tick
                             // but equilibrium isn't reached until the millions, so this is still of use for
                             // users with memory concerns.
+                            // FIXME We shouldn't be linking directly against CraftWorld here
                             while (ticklist.size() > (this.speed == GenerationSpeed.ALLATONCE ? 0 : 200000))
                                 ((CraftWorld)this.world).getHandle().a(true);
                         }
