@@ -584,26 +584,22 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 // potentially good lighting.
                 
                 net.minecraft.server.Chunk rawchunk = ((CraftChunk)this.chunk).getHandle();
-                
-                if (force && this.world.isChunkLoaded(x - 1, z - 1) &&
-                    this.world.isChunkLoaded(x - 1, z) &&
-                    this.world.isChunkLoaded(x - 1, z + 1) &&
-                    this.world.isChunkLoaded(x, z - 1) &&
-                    this.world.isChunkLoaded(x, z + 1) &&
-                    this.world.isChunkLoaded(x + 1, z - 1) &&
-                    this.world.isChunkLoaded(x + 1, z) &&
-                    this.world.isChunkLoaded(x + 1, z + 1))
+
+		// We skip the edge chunks - with overlap=2, they will be a non-edge chunk in at least one region,
+		// where we can also guarantee their peers are loaded for proper loading
+                if (force && !this.edge)
                 {
                     rawchunk.initLighting();
-                }
-                try
-                {
-                    WorldGenerationControl.lightingFixMethod.invoke(rawchunk);
-                }
-                catch (Exception e)
-                {
-                    // This shouldn't happen, as we checked access earlier.
-                    WorldGenerationControl.lightingFixMethod = null;
+		    try
+		    {
+			WorldGenerationControl.lightingFixMethod.invoke(rawchunk);
+		    }
+		    catch (Exception e)
+		    {
+			// This shouldn't happen, as we checked access earlier.
+			statusMsg("ERROR: Lighting failure. /lighting will not function - likely due to an unsupported CraftBukkit version");
+		        WorldGenerationControl.lightingFixMethod = null;
+		    }
                 }
             }
         }
@@ -720,6 +716,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
     private GenerationRegion currentRegion;
     private Runtime runtime = Runtime.getRuntime();
     private static Method lightingFixMethod = null;
+    private boolean lightingRequiresForce = false;
     private ArrayDeque<GenerationRegion> pendingRegions = new ArrayDeque<GenerationRegion>();
     private int taskId = 0;
     private boolean quitAfter = false;
@@ -731,29 +728,44 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         if (WorldGenerationControl.lightingFixMethod == null)
         {
             // Find lighting fix method
-            // pre 1.0: h() calls i() (private) which relights all x/z columns marked as needing full lighting
+            // pre 1.0: h() calls i() (private) which relights all x/z columns
+	    //          marked as needing full lighting
             // Post 1.0: i() is public and calls k()
-            // Thus, try getting public i(), if it fails, try h().
+	    // 1.3+ This function is removed, but a new function, 'recheckGaps',
+	    //      exists to reprocess lighting for the chunk, which is
+	    //      obfuscated to private q()
+	    String names[] = { "i", "k", "q" };
+	    
             Class cc;
             try
             {
                 cc = Class.forName("net.minecraft.server.Chunk");
-                try
-                {
-                    Method m = cc.getDeclaredMethod("i");
-                    if ((m.getModifiers() & Modifier.PUBLIC) != 0)
-                        WorldGenerationControl.lightingFixMethod = m;
-                    else
-                        throw new Exception();
-                }
-                catch (Exception e)
-                {
-                    Method m = cc.getDeclaredMethod("h");
-                    if ((m.getModifiers() & Modifier.PUBLIC) != 0)
-                        WorldGenerationControl.lightingFixMethod = m;
-                }
+		for (String n:names)
+		{
+		    try
+		    {
+			Method m = cc.getDeclaredMethod(n);
+			if ((m.getModifiers() & Modifier.PRIVATE) != 0)
+			{
+			    m.setAccessible(true); // bad touch!
+			    WorldGenerationControl.lightingFixMethod = m;
+			    statusMsg("Found lighting fix method '"+n+"'");
+			    // 1.3+ doesn't initialize lighting on new chunks at all, meaning calling
+			    // initLighting is required prior to get any lighting, so until we're smarter about
+			    // detecting this, always require force here
+			    if (n == "q")
+				this.lightingRequiresForce = true;
+			    break;
+			}
+		    }
+		    catch (Exception e) {} // various method not found exceptions
+		}
             }
-            catch (Exception e) {}
+            catch (Exception e) {} // Failed to find class
+	    if (WorldGenerationControl.lightingFixMethod == null)
+	    {
+		statusMsg("WARNING: Failed to find lighting fix method, /lighting will not work for this CB build");
+	    }    
         }
     }
     
@@ -930,7 +942,9 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 if (lightswitch.equals("extreme") || lightswitch.equals("force"))
                     lighting = GenerationLighting.EXTREME;
                 else if (lightswitch.equals("true") || lightswitch.equals("normal"))
-                    lighting = GenerationLighting.NORMAL;
+		{
+		    lighting = this.lightingRequiresForce ? GenerationLighting.EXTREME : GenerationLighting.NORMAL;
+		}
                 else
                 {
                     statusMsg("Invalid lighting mode \""+lightswitch+"\"");
