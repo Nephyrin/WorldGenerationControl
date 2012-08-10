@@ -358,23 +358,41 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             {
                 
                 // Force unload the area first, so all blocks only get populators
-                // run on them from their newly generated counterparts. Because the
-                // regions overlap, we dont need to worry about the edges.
+                // run on them from their newly generated counterparts.
                 Iterator<GenerationChunk> i = chunks.iterator();
                 while (i.hasNext())
                 {
                     GenerationChunk gc = i.next();
-                    gc.kickPlayers("The region you are in was regenerated. Please rejoin");
-                    gc.unload(true);
+		    gc.kickPlayers("The region you are in was regenerated. Please rejoin");
+		    gc.unload(true);
                 }
             }
             Iterator<GenerationChunk> iter = chunks.iterator();
+	    ArrayDeque<GenerationChunk> rim = new ArrayDeque<GenerationChunk>();
             while (iter.hasNext())
             {
                 GenerationChunk c = iter.next();
-                c.load(this.forceregeneration);
+		// In force regeneration mode, we will load everything but the outer edge first, then load (not
+		// regenerate) that outer rim so populators trigger. Unless we're right at the edge of the requested
+		// generation area, those chunks will be non-edge-chunks in a QueuedRegion adjacent to this, due to
+		// overlap = 2
+		if (!this.forceregeneration || !c.isEdgeChunk())
+		{
+		    c.load(this.forceregeneration);
+		}
+		else
+		{
+		    rim.push(c);
+		}
             }
-            
+
+	    // Now load rim if necessary
+	    iter = rim.iterator();
+	    while (iter.hasNext())
+	    {
+		iter.next().load(false);
+	    }
+	    
             //
             // Lighting
             //
@@ -437,7 +455,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             
             // Regions need to overlap by 2 so block populators
             // and lighting can run. (edge chunks wont work in either)
-            int overlap = 2;
+            int overlap = 1;
             
             int zNext = zStart;
             int xNext = xStart;
@@ -499,7 +517,10 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
                 {
                     // Skip chunks outside circle radius
                     if ((radius == 0) || (radius >= Math.sqrt((Math.pow(Math.abs(x - xCenter),2) + Math.pow(Math.abs(z - zCenter),2)))))
-                        ret.push(new GenerationChunk(x, z, world));
+		    {
+			boolean edge = (x == this.xStart) || (z == this.zStart) || (x == this.xEnd) || (z == this.zEnd);
+                        ret.push(new GenerationChunk(x, z, world, edge));
+		    }
                     
                     x++;
                     if (x > xEnd)
@@ -521,10 +542,19 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
         private World world;
         private Chunk chunk;
         private boolean wascreated;
-        GenerationChunk(int x, int z, World world) { this.x = x; this.z = z; this.world = world; this.wascreated = false; }
+	private boolean edge;
+        GenerationChunk(int x, int z, World world, boolean edge)
+	{
+	    this.x = x;
+	    this.z = z;
+	    this.world = world;
+	    this.wascreated = false;
+	    this.edge = edge;
+	}
         public int getX() { return x; }
         public int getZ() { return z; }
         public boolean wasCreated() { return this.wascreated; }
+        public boolean isEdgeChunk() { return this.edge; }
         public int kickPlayers(String msg)
         {
             int kicked = 0;
