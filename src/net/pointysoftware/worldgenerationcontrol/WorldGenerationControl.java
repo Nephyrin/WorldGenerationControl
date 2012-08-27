@@ -455,7 +455,7 @@ public class WorldGenerationControl extends JavaPlugin implements Runnable
             
             // Regions need to overlap by 2 so block populators
             // and lighting can run. (edge chunks wont work in either)
-            int overlap = 1;
+            int overlap = 2;
             
             int zNext = zStart;
             int xNext = xStart;
